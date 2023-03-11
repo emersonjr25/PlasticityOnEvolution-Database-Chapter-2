@@ -19,35 +19,31 @@ dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",")
 
 subdata <- select(dados, paper_no, first_author_surname, pub_year, genus, species, population, source, trait_cat, simp_trait, T, mean)
 
-subdata2 <- paste0(subdata$genus," ", subdata$species)
-
-subdata$species_complete <- subdata2
+subdata$species_complete <- paste0(subdata$genus," ", subdata$species)
 
 ### LIST SEPARATING STUDIES ####
 
-unicos <- unique(subdata$paper_no)
+uniques <- unique(subdata$paper_no)
 
-separated_list <- list()
+list_information_studies <- vector("list", length(uniques))
 
-for(i in 1:length(unicos)){
-  pos <- which(unicos[i] == subdata$paper_no)
-  separated_list[[i]] <- subdata[pos, ]
-  pos <- 0
+for(i in seq_along(uniques)){
+  list_information_studies[[i]] <- subdata[uniques[i] == subdata$paper_no, ]
 }
 
 ### DISCOVERY OF POSITION OF THE TRAIT ###
 
 name_traits <- list()
 
-for(i in 1:length(separated_list)){
-  name_traits[[i]] <- unique(separated_list[[i]]$simp_trait)
+for(i in 1:length(list_information_studies)){
+  name_traits[[i]] <- unique(list_information_studies[[i]]$simp_trait)
 }
 
 # SUB LIST #
 
 only_traits <- list()
 
-only_trait <- lapply(separated_list, FUN = function(dados){
+only_trait <- lapply(list_information_studies, FUN = function(dados){
   logic <- names(dados) == "simp_trait"
   posi <- which(logic == TRUE)
   return(return(dados[posi]))
@@ -73,7 +69,7 @@ species_per_study <- list()
 
 for(i in seq_along(name_traits)){
   for(j in seq_along(name_traits[[i]])){
-    species_per_study[[i]] <- unique(separated_list[[i]]$species_complete[pos_trait[[i]][[j]]])
+    species_per_study[[i]] <- unique(list_information_studies[[i]]$species_complete[pos_trait[[i]][[j]]])
   }
 }
 
@@ -114,7 +110,7 @@ for(i in 1:length(species_per_study)){
 
 for(i in 1:length(species_per_study)){
   for(j in seq_along(species_per_study[[i]])){
-    pos_species[[i]][[j]] <- which(species_per_study[[i]][[j]] == separated_list[[i]][["species_complete"]])
+    pos_species[[i]][[j]] <- which(species_per_study[[i]][[j]] == list_information_studies[[i]][["species_complete"]])
   }
 }
 
@@ -144,7 +140,7 @@ for(i in seq_along(pos_species_in_study)){
 
 for(i in seq_along(pos_species_in_study)){
   for(j in seq_along(pos_species_in_study[[i]])){
-    pos_each_paper <- which(unicos[i] == subdata$paper_no)
+    pos_each_paper <- which(uniques[i] == subdata$paper_no)
     pos_species_in_study[[i]][[j]] <- which(subdata$species_complete[pos_each_paper] == species_per_study[[i]][[j]])
   } 
 }
@@ -199,7 +195,7 @@ for(i in 1:length(name_traits)){
 
 for(i in seq_along(name_traits)){
   for(j in seq_along(name_traits[[i]])){
-    minimo[[i]][[j]] <- min(separated_list[[i]]$T[pos_trait[[i]][[j]]])
+    minimo[[i]][[j]] <- min(list_information_studies[[i]]$T[pos_trait[[i]][[j]]])
   }
 }
 
@@ -213,7 +209,7 @@ for(i in 1:length(name_traits)){
 
 for(i in seq_along(name_traits)){
   for(j in seq_along(name_traits[[i]])){
-    maximo[[i]][[j]] <- max(separated_list[[i]]$T[pos_trait[[i]][[j]]])
+    maximo[[i]][[j]] <- max(list_information_studies[[i]]$T[pos_trait[[i]][[j]]])
   }
 }
 
@@ -229,10 +225,10 @@ separada <- 0
 
 for(i in seq_along(name_traits)){
   for(j in seq_along(name_traits[[i]])){
-    separada <- separated_list[[i]]$T
+    separada <- list_information_studies[[i]]$T
     separada[pos_trait[[i]][[j]]] <- 1
     separada[separada != 1] <- 0
-    separada[separada == 1] <- separated_list[[i]]$T[pos_trait[[i]][[j]]]
+    separada[separada == 1] <- list_information_studies[[i]]$T[pos_trait[[i]][[j]]]
     posmin[[i]][[j]] <- which(separada == minimo[[i]][[j]])
   }
 }
@@ -249,10 +245,10 @@ separada <- 0
 
 for(i in seq_along(name_traits)){
   for(j in seq_along(name_traits[[i]])){
-    separada <- separated_list[[i]]$T
+    separada <- list_information_studies[[i]]$T
     separada[pos_trait[[i]][[j]]] <- 1
     separada[separada != 1] <- 0
-    separada[separada == 1] <- separated_list[[i]]$T[pos_trait[[i]][[j]]]
+    separada[separada == 1] <- list_information_studies[[i]]$T[pos_trait[[i]][[j]]]
     posmax[[i]][[j]] <- which(separada == maximo[[i]][[j]])
   }
 }
@@ -267,7 +263,7 @@ for(i in 1:length(name_traits)){
 
 for(i in seq_along(name_traits)){
   for(j in seq_along(name_traits[[i]])){
-    mean_min[[i]][[j]] <- mean(as.numeric(separated_list[[i]]$mean[posmin[[i]][[j]]]))
+    mean_min[[i]][[j]] <- mean(as.numeric(list_information_studies[[i]]$mean[posmin[[i]][[j]]]))
   }
 }
 
@@ -281,7 +277,7 @@ for(i in 1:length(name_traits)){
 
 for(i in seq_along(name_traits)){
   for(j in seq_along(name_traits[[i]])){
-    mean_max[[i]][[j]] <- mean(as.numeric(separated_list[[i]]$mean[posmax[[i]][[j]]]))
+    mean_max[[i]][[j]] <- mean(as.numeric(list_information_studies[[i]]$mean[posmax[[i]][[j]]]))
   }
 }
 
@@ -295,7 +291,7 @@ for(i in 1:length(name_traits)){
 
 for(i in seq_along(name_traits)){
   for(j in seq_along(name_traits[[i]])){
-    group_1[[i]][[j]] <- as.numeric(separated_list[[i]]$mean[posmin[[i]][[j]]])
+    group_1[[i]][[j]] <- as.numeric(list_information_studies[[i]]$mean[posmin[[i]][[j]]])
   }
 }
 
@@ -309,7 +305,7 @@ for(i in 1:length(name_traits)){
 
 for(i in seq_along(name_traits)){
   for(j in seq_along(name_traits[[i]])){
-    group_2[[i]][[j]] <- as.numeric(separated_list[[i]]$mean[posmax[[i]][[j]]])
+    group_2[[i]][[j]] <- as.numeric(list_information_studies[[i]]$mean[posmax[[i]][[j]]])
   }
 }
 
@@ -358,8 +354,8 @@ for(i in seq_along(hedge_effect)){
 pos <- 0
 posicao_final <- list()
 
-for(i in 1:length(unicos)){
-  pos <- which(unicos[i] == subdata$paper_no)
+for(i in 1:length(uniques)){
+  pos <- which(uniques[i] == subdata$paper_no)
   posicao_final[[i]] <- pos[1]
 }
 
