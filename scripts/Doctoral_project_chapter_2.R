@@ -16,105 +16,34 @@ library(here)
 ### READING DATA ###
 
 dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",")
-
-subdata <- select(dados, paper_no, first_author_surname, pub_year, genus, species, population, source, trait_cat, simp_trait, T, mean)
-
+subdata <- dados %>% select(paper_no, genus, species, population, simp_trait, T, mean)
 subdata$species_complete <- paste0(subdata$genus," ", subdata$species)
 
-### LIST SEPARATING STUDIES ####
+### To calculate Hedge's we need a list with studies, species, traits, temperature and traits ####
 
-uniques <- unique(subdata$paper_no)
+index_per_study <- unique(subdata$paper_no)
 
-list_information_studies <- vector("list", length(uniques))
+list_information_studies <- vector("list", length(index_per_study))
+species_per_study <- vector("list", length(index_per_study))
+pos_species <- vector("list", length(index_per_study))
 
-for(i in seq_along(uniques)){
-  list_information_studies[[i]] <- subdata[uniques[i] == subdata$paper_no, ]
+for(i in seq_along(index_per_study)){
+  list_information_studies[[i]] <- subdata[index_per_study[i] == subdata$paper_no, ]
 }
 
-### DISCOVERY OF POSITION OF THE TRAIT ###
-
-name_traits <- list()
-
-for(i in 1:length(list_information_studies)){
-  name_traits[[i]] <- unique(list_information_studies[[i]]$simp_trait)
-}
-
-# SUB LIST #
-
-only_traits <- list()
-
-only_trait <- lapply(list_information_studies, FUN = function(dados){
-  logic <- names(dados) == "simp_trait"
-  posi <- which(logic == TRUE)
-  return(return(dados[posi]))
-})
-
-### TRAITS POSITION  ###
-
-pos_trait <- list()
-
-for(i in 1:length(name_traits)){
-  pos_trait[[i]] <- vector("list", length(name_traits[[i]]))
-}
-
-for(i in 1:length(name_traits)){
-  for(j in seq_along(name_traits[[i]])){
-    pos_trait[[i]][[j]] <- which(name_traits[[i]][[j]] == only_trait[[i]])
+for(i in seq_along(list_information_studies)){
+  for(j in seq_along(list_information_studies[[i]])){
+    species_per_study[[i]] <- unique(list_information_studies[[i]]$species_complete)
   }
-}
-
-### SPECIES POSITION ###
-
-species_per_study <- list()
-
-for(i in seq_along(name_traits)){
-  for(j in seq_along(name_traits[[i]])){
-    species_per_study[[i]] <- unique(list_information_studies[[i]]$species_complete[pos_trait[[i]][[j]]])
-  }
-}
-
-number_species <- list()
-
-for(i in 1:length(species_per_study)){
-  if(species_per_study[[i]] == 1){
-    number_species[[i]] <- 1
-  } else {
-    number_species[[i]] <- length(species_per_study[[i]])
-  }
-}
- only_species_with_more_1 <- 0
-
- for(i in 1:length(number_species)){
-   if(number_species[[i]] == 1){
-     only_species_with_more_1[[i]] <- 0
-   } else {
-     only_species_with_more_1[i] <- number_species[[i]]
-   }
- }
-
- only_species_with_more_1 <- only_species_with_more_1 != 0
-
- for(i in 1:length(only_species_with_more_1)){
-   if(only_species_with_more_1[i] == TRUE){
-     only_species_with_more_1[i] <- 1
-  } else {
-     only_species_with_more_1[i] <- 0
-   }
- }
-
-pos_species <- list()
-
-for(i in 1:length(species_per_study)){
-  pos_species[[i]] <- vector("list", length(species_per_study[[i]]))
 }
 
 for(i in 1:length(species_per_study)){
   for(j in seq_along(species_per_study[[i]])){
     pos_species[[i]][[j]] <- which(species_per_study[[i]][[j]] == list_information_studies[[i]][["species_complete"]])
   }
+  names(pos_species[[i]]) <- species_per_study[[i]]
 }
 
-####### TRY SEPARATE TRAIT PER SPECIES PER STUDY #####
 
 pos_species_in_study <- list()
 
@@ -122,25 +51,59 @@ for(i in 1:length(pos_species)){
   pos_species_in_study[[i]] <- vector("list", length(pos_species[[i]]))
 }
 
-for(i in seq_along(pos_species_in_study)){
-  names(pos_species_in_study[[i]]) <- species_per_study[[i]]
-}
+
 
 for(i in seq_along(pos_species_in_study)){
   for(j in seq_along(pos_species_in_study[[i]])){
-    pos_species_in_study[[i]][[j]] <- lapply(name_traits[[i]], names)
+    pos_species_in_study[[i]][[j]] <- lapply(name_traits_per_study[[i]], names)
+  }
+}
+
+### DISCOVERY OF POSITION OF THE TRAIT ###
+
+name_traits_per_study <- vector("list", length(index_per_study))
+
+for(i in 1:length(list_information_studies)){
+  name_traits_per_study[[i]] <- unique(list_information_studies[[i]]$simp_trait)
+}
+
+# SUB LIST #
+
+only_trait <- vector("list", length(index_per_study))
+
+only_trait <- lapply(list_information_studies, FUN = function(dados){
+  logic <- names(dados) == "simp_trait"
+ return(dados[logic])
+})
+
+### TRAITS POSITION  ###
+
+pos_trait <- list()
+
+for(i in 1:length(name_traits_per_study)){
+  pos_trait[[i]] <- vector("list", length(name_traits_per_study[[i]]))
+}
+
+for(i in 1:length(name_traits_per_study)){
+  for(j in seq_along(name_traits_per_study[[i]])){
+    pos_trait[[i]][[j]] <- which(name_traits_per_study[[i]][[j]] == only_trait[[i]])
+  }
+}
+
+
+####### TRY SEPARATE TRAIT PER SPECIES PER STUDY #####
+
+
+
+for(i in seq_along(pos_species_in_study)){
+  for(j in seq_along(pos_species_in_study[[i]])){
+    names(pos_species_in_study[[i]][[j]]) <- name_traits_per_study[[i]]
   }
 }
 
 for(i in seq_along(pos_species_in_study)){
   for(j in seq_along(pos_species_in_study[[i]])){
-    names(pos_species_in_study[[i]][[j]]) <- name_traits[[i]]
-  }
-}
-
-for(i in seq_along(pos_species_in_study)){
-  for(j in seq_along(pos_species_in_study[[i]])){
-    pos_each_paper <- which(uniques[i] == subdata$paper_no)
+    pos_each_paper <- which(index_per_study[i] == subdata$paper_no)
     pos_species_in_study[[i]][[j]] <- which(subdata$species_complete[pos_each_paper] == species_per_study[[i]][[j]])
   } 
 }
@@ -158,13 +121,13 @@ for(i in seq_along(pos_trait_per_specie)){
 
 for(i in seq_along(pos_trait_per_specie)){
   for(j in seq_along(pos_trait_per_specie[[i]])){
-    pos_trait_per_specie[[i]][[j]] <- lapply(name_traits[[i]], names)
+    pos_trait_per_specie[[i]][[j]] <- lapply(name_traits_per_study[[i]], names)
   }
 }
 
 for(i in seq_along(pos_trait_per_specie)){
   for(j in seq_along(pos_trait_per_specie[[i]])){
-    names(pos_trait_per_specie[[i]][[j]]) <- name_traits[[i]]
+    names(pos_trait_per_specie[[i]][[j]]) <- name_traits_per_study[[i]]
   }
 }
 
@@ -354,8 +317,8 @@ for(i in seq_along(hedge_effect)){
 pos <- 0
 posicao_final <- list()
 
-for(i in 1:length(uniques)){
-  pos <- which(uniques[i] == subdata$paper_no)
+for(i in 1:length(index_per_study)){
+  pos <- which(index_per_study[i] == subdata$paper_no)
   posicao_final[[i]] <- pos[1]
 }
 
