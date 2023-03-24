@@ -51,7 +51,7 @@ for(i in 1:length(pos_species)){
   pos_species_in_study[[i]] <- vector("list", length(pos_species[[i]]))
 }
 
-
+name_traits_per_study <- vector("list", length(index_per_study))
 
 for(i in seq_along(pos_species_in_study)){
   for(j in seq_along(pos_species_in_study[[i]])){
@@ -61,7 +61,7 @@ for(i in seq_along(pos_species_in_study)){
 
 ### DISCOVERY OF POSITION OF THE TRAIT ###
 
-name_traits_per_study <- vector("list", length(index_per_study))
+
 
 for(i in 1:length(list_information_studies)){
   name_traits_per_study[[i]] <- unique(list_information_studies[[i]]$simp_trait)
