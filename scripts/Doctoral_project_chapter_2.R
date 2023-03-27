@@ -8,9 +8,9 @@
 
 ### PACKAGES ####
 library(dplyr)
-library(stringr)
-library(effectsize)
-library(purrr)
+#library(stringr)
+#library(effectsize)
+#library(purrr)
 library(here)
 
 ### READING DATA ###
@@ -51,32 +51,78 @@ for(i in seq_along(pos_species_in_study)){
 }
 
 ##### LIST READY TO SAVE VALUES ####
-pos_species_in_study[[1]][[1]][[1]]
+test2 <- pos_species_in_study[c(1, 2)]
 
+i <- 1
+j <- 1
+l <- 1
+test <- list()
+time <- 0
+for(i in seq_along(test2)){
+  for(j in seq_along(test2[[i]])){
+    for(l in seq_along(test2[[j]])){
+      time <- time + 1
+      while(l <= length(test2[[i]][[j]])){
+        if(l <= length(test2[[i]][[j]])){
+          test[[time]] <- test2[[i]][[j]][[l]]
+        } else {
+          l <- 1
+        }
+      }
+    }
+  }
+}
 
+length(test2[[1]][[1]])
 
 for(i in seq_along(test2)){
   for(j in seq_along(test2)){
-    
+    for(l in seq_along(test2)){
+      time <- time + 1  
+      test[[time]] <- test2[[l]]
+    }
   }
 }
 
-a <- list()
-test2 <- pos_species_in_study[c(1, 2)]
-test <- function(x){
-  for(i in seq_along(x)){
-    for(j in seq_along(x)[[i]]){
-      a[[j]] <- lapply(x[[j]], function(c){
-        c <- 1
-        list(c)
-      } )
-    }
+
+lista_aninhada <- list(
+  list(list(1, 2, 3), list(4, 5, 6), list(7, 8, 9)),
+  list(list(10, 11, 12), list(13, 14, 15), list(16, 17, 18)),
+  list(list(19, 20, 21), list(22, 23, 24), list(25, 26, 27)),
+  list(list(28, 29, 30), list(31, 32, 33), list(34, 35, 36)),
+  list(list(37, 38, 39), list(40, 41, 42), list(43, 44, 45)),
+  list(list(46, 47, 48), list(49, 50, 51), list(52, 53, 54))
+)
+
+
+adicionar_um <- function(x) {
+  if(is.list(x)) {
+    lapply(x, adicionar_um)
+  } else {
+    x + 1
   }
-  x <- a
-  return(x)
 }
-test1 <- list()
-test1 <- test(test2)
+
+adicionar_um(lista_aninhada)
+
+medias <- list()
+
+for(i in seq_along(lista_aninhada)) {
+  sublist1 <- lista_aninhada[[i]]
+  submedias1 <- list()
+  for(j in seq_along(sublist1)) {
+    sublist2 <- sublist1[[j]]
+    submedias2 <- list()
+    for(k in seq_along(sublist2)) {
+      submedias2[[k]] <- mean(sublist2[[k]])
+    }
+    submedias1[[j]] <- submedias2
+  }
+  medias[[i]] <- submedias1
+}
+
+print(medias)
+
 # for(i in seq_along(pos_species_in_study)){)
 #   pos_species_in_study[[i]] <- lapply(pos_species_in_study[[i]], names)
 # }
