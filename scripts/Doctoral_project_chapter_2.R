@@ -53,38 +53,6 @@ for(i in seq_along(pos_species_in_study)){
 ##### LIST READY TO SAVE VALUES ####
 test2 <- pos_species_in_study[c(1, 2)]
 
-i <- 1
-j <- 1
-l <- 1
-test <- list()
-time <- 0
-for(i in seq_along(test2)){
-  for(j in seq_along(test2[[i]])){
-    for(l in seq_along(test2[[j]])){
-      time <- time + 1
-      while(l <= length(test2[[i]][[j]])){
-        if(l <= length(test2[[i]][[j]])){
-          test[[time]] <- test2[[i]][[j]][[l]]
-        } else {
-          l <- 1
-        }
-      }
-    }
-  }
-}
-
-length(test2[[1]][[1]])
-
-for(i in seq_along(test2)){
-  for(j in seq_along(test2)){
-    for(l in seq_along(test2)){
-      time <- time + 1  
-      test[[time]] <- test2[[l]]
-    }
-  }
-}
-
-
 lista_aninhada <- list(
   list(list(1, 2, 3), list(4, 5, 6), list(7, 8, 9)),
   list(list(10, 11, 12), list(13, 14, 15), list(16, 17, 18)),
@@ -93,6 +61,48 @@ lista_aninhada <- list(
   list(list(37, 38, 39), list(40, 41, 42), list(43, 44, 45)),
   list(list(46, 47, 48), list(49, 50, 51), list(52, 53, 54))
 )
+
+i <- 1
+j <- 1
+l <- 1
+final <- list()
+list1 <- list()
+final2 <- list()
+
+calculation <- function(x){
+  browser()
+  if(is.list(x)){
+    lapply(x, calculation)
+  } else {
+    x <- 1
+  }
+}
+opa <- calculation(test2)
+
+for(i in seq_along(test2)){
+  #browser()
+  list1 <- test2[[i]]
+  for(j in seq_along(list1)){
+    final <- list1[[j]]
+    for(l in seq_along(final)){
+      final2[[l]] <- final[[l]]
+    }
+  }
+}
+
+
+for(i in seq_along(test2)){
+  for(j in seq_along(test2[[i]])){
+    for(l in seq_along(test2[[j]])){
+      time <- time + 1
+      if(l <= length(test2[[i]][[j]])){
+        test[[time]] <- test2[[i]][[j]][[l]]
+      } else {
+        break
+      }
+    }
+  }
+}
 
 
 adicionar_um <- function(x) {
