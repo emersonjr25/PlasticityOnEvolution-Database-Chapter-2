@@ -33,6 +33,12 @@ length_temp <- function(x, f){
     summarise(length = f(T))
 } 
 
+sd_temp <- function(x, f){
+  x %>%
+    select(-T) %>%
+    summarise(sd = f(T))
+} 
+
 mean_temp <- function(x, f){
   x %>%
     mutate(mean = as.double(mean)) %>%
@@ -56,4 +62,26 @@ mean_min_values <- mean_temp(min_values, mean)
 result <- mean_max_values %>%
   select(-mean_variable)
 
-result$hedges_g <- mapply(hedges, mean_min_values$mean_variable, mean_max_values$mean_variable, length_min$length, length_max$length)
+#### TRYING CALCULATE HEDGE's G EFFECT ###
+sd_max <- max_values %>%
+  select(-T) %>%
+  mutate(mean = as.double(mean)) %>%
+  summarise(sd = sd(mean))
+
+sd_min <- min_values %>%
+  select(-T) %>%
+  mutate(mean = as.double(mean)) %>%
+  summarise(sd = sd(mean))
+
+sd_pool <- function(x, y){
+  sqrt((x^2 + y^2) / 2)
+}
+
+hedges_g <- function(x, y, sd){
+  round(abs((x - y) / sd), 3)
+}
+
+sd_pooled(as.double(min_values$mean[1:3], as.double(max_values$mean[1:3])))
+
+result$sd_pool <- mapply(sd_pool, sd_min$sd, sd_max$sd)
+result$hedges_g <- mapply(hedges_g, mean_min_values$mean_variable, mean_max_values$mean_variable, result$sd_pool)
