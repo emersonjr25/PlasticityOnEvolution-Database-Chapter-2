@@ -16,10 +16,24 @@ library(here)
 dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",")
 subdata <- dados %>% select(paper_no, genus, species, simp_trait, T, mean)
 subdata$species_complete <- paste0(subdata$genus," ", subdata$species)
+
 subdata <- subdata %>% 
-  mutate(id = 1:nrow(subdata)) %>%
+  group_by(paper_no, species_complete, simp_trait) %>%
+  mutate(id = paste0('ID', paper_no, species_complete, simp_trait)) %>%
   select(id, paper_no, species_complete, 
          simp_trait, T, mean)
+
+uniques <- subdata %>%
+  ungroup() %>%
+  select(id) %>%
+  unique() %>%
+  unlist()
+
+for(i in seq_along(uniques)){
+  temporary <- subdata$id == uniques[[i]]
+  subdata$id[temporary] <- i
+}
+subdata <- subdata %>% mutate(id = as.integer(id))
 
 ### To calculate Hedge's we need a group with studies, species, and traits ####
 
@@ -28,62 +42,40 @@ temp_ampli <- function(x, f){
    x %>%
     as.tibble() %>%
     mutate(mean = as.double(mean)) %>%
-    group_by(paper_no, species_complete, simp_trait) %>%
-    filter(T == f(T))
+    group_by(id, paper_no, species_complete, simp_trait) %>%
+    filter(T == f(T)) %>%
+    arrange(id)
 }
 
-sd_temp <- function(x, f){
+mean_calculation <- function(x, f){
   x %>%
-    select(-T) %>%
-    summarise(sd = f(T))
-} 
-
-mean_temp <- function(x, f){
-  x %>%
-    mutate(mean = as.double(mean)) %>%
+    select(-c(T)) %>%
     summarise(mean_variable = f(mean))
 }
 
-### CALCULATION ###
+hed_g <- function(mean1, mean2, sd_p){
+  round(((mean(mean1) - mean(mean2)) / sd_p), 3)
+}
+
 min_values <- temp_ampli(subdata, min)
 max_values <- temp_ampli(subdata, max)
 
-mean_max_values <- mean_temp(max_values, mean)
-mean_min_values <- mean_temp(min_values, mean)
+mean_min_values <- mean_calculation(min_values, mean)
+mean_max_values <- mean_calculation(max_values, mean)
 
-table_result <- min_values %>%
-  ungroup() %>%
-  mutate(mean= as.double(mean))
+result <- mean_min_values %>%
+  select(-c(mean_variable))
+result$sd_pool <- NA
 
-max_values <- max_values %>%
-  ungroup() %>%
-  select(id, T, mean)
-
-table_result <- full_join(table_result, max_values, by ='id')
-table_result <- table_result %>%
-  rename(temp_min = T.x, mean_min = mean.x, 
-         temp_max = T.y, mean_max = mean.y)
-
-#### TRYING CALCULATE HEDGE's G EFFECT ###
-sd_max <- max_values %>%
-  select(-T) %>%
-  mutate(mean = as.double(mean)) %>%
-  summarise(sd = sd(mean))
-
-sd_min <- min_values %>%
-  select(-T) %>%
-  mutate(mean = as.double(mean)) %>%
-  summarise(sd = sd(mean))
-
-
-
-sd_pool <- function(x, y){
-  sqrt((x^2 + y^2) / 2)
+for(i in seq_along(unique(max_values$id))){
+  amostragem_1 <- min_values[min_values$id == i, ]
+  amostragem_2 <- max_values[max_values$id == i, ]
+  result$sd_pool[i] <- sd_pooled(amostragem_1$mean, amostragem_2$mean)
 }
 
-result <- mean_max_values %>%
-  select(-mean_variable)
-
-result$sd_pool <- mapply(sd_pool, sd_min$sd, sd_max$sd)
-result$hedges_g <- mapply(hedgesg, mean_min_values$mean_variable, mean_max_values$mean_variable, result$sd_pool)
-
+result$hedgesg <- mapply(hed_g, mean_min_values$mean_variable, 
+                          mean_max_values$mean_variable,
+                          result$sd_pool)
+result <- result %>% 
+  filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
+  select(-sd_pool)
