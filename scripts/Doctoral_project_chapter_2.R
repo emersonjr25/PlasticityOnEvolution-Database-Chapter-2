@@ -61,6 +61,8 @@ hed_g <- function(mean1, mean2, sd_p){
   round(((mean(mean1) - mean(mean2)) / sd_p), 3)
 }
 
+#### RESULTS: TEMP, MEAN, SD POOL, AND HEDGEs G (PLASTICITY) ####
+
 min_values <- temp_ampli(subdata, min)
 max_values <- temp_ampli(subdata, max)
 
@@ -68,8 +70,8 @@ mean_min_values <- mean_calculation(min_values, mean)
 mean_max_values <- mean_calculation(max_values, mean)
 
 result <- mean_min_values %>%
-  select(-c(mean_variable))
-result$sd_pool <- NA
+  select(-c(mean_variable)) %>%
+  mutate(sd_pool = NA)
 
 for(i in seq_along(unique(max_values$id))){
   amostragem_1 <- min_values[min_values$id == i, ]
@@ -80,6 +82,7 @@ for(i in seq_along(unique(max_values$id))){
 result$hedgesg <- mapply(hed_g, mean_min_values$mean_variable, 
                           mean_max_values$mean_variable,
                           result$sd_pool)
+
 result <- result %>% 
   filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
   select(-sd_pool)
