@@ -13,15 +13,18 @@ library(here)
 
 ### READING DATA ###
 
-dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",")
-subdata <- dados %>% select(paper_no, genus, species, simp_trait, T, mean)
-subdata$species_complete <- paste0(subdata$genus," ", subdata$species)
+dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",") 
 
-subdata <- subdata %>% 
+#### ENGINEER DATA AND MODELING ####
+
+subdata <- dados %>% 
+  as.tibble() %>%
+  select(paper_no, genus, species, simp_trait, T, mean) %>%
+  mutate(species_complete = paste0(genus," ", species)) %>%
   group_by(paper_no, species_complete, simp_trait) %>%
   mutate(id = paste0('ID', paper_no, species_complete, simp_trait)) %>%
   select(id, paper_no, species_complete, 
-         simp_trait, T, mean)
+         simp_trait, T, mean) 
 
 uniques <- subdata %>%
   ungroup() %>%
@@ -33,15 +36,16 @@ for(i in seq_along(uniques)){
   temporary <- subdata$id == uniques[[i]]
   subdata$id[temporary] <- i
 }
-subdata <- subdata %>% mutate(id = as.integer(id))
+
+subdata <- subdata %>% 
+  mutate(id = as.integer(id), 
+         mean = as.double(mean))
 
 ### To calculate Hedge's we need a group with studies, species, and traits ####
 
 ### FUNCTIONS ###
 temp_ampli <- function(x, f){
    x %>%
-    as.tibble() %>%
-    mutate(mean = as.double(mean)) %>%
     group_by(id, paper_no, species_complete, simp_trait) %>%
     filter(T == f(T)) %>%
     arrange(id)
