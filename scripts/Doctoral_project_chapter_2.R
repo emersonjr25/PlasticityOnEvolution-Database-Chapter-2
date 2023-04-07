@@ -106,6 +106,6 @@ result <- result %>%
   filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
   select(-sd_pool)
 
-#### calculo do musse ###
+#### MUSSE CALCULATION ###
 
 #make.musse.multitrait()
