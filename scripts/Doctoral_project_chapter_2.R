@@ -9,6 +9,7 @@
 ### PACKAGES ####
 library(tidyverse)
 library(effectsize)
+library(diversitree)
 library(here)
 
 ### READING DATA ###
@@ -24,7 +25,8 @@ subdata <- dados %>%
   group_by(paper_no, species_complete, simp_trait) %>%
   mutate(id = paste0('ID', paper_no, species_complete, simp_trait)) %>%
   select(id, paper_no, species_complete, 
-         simp_trait, T, mean) 
+         simp_trait, T, mean)  %>%
+  mutate(species_complete = str_squish(species_complete))
 
 uniques <- subdata %>%
   ungroup() %>%
@@ -62,6 +64,12 @@ hed_g <- function(mean1, mean2, sd_p){
   round(((mean(mean1) - mean(mean2)) / sd_p), 3)
 }
 
+test_equal_temperature <- function(x, f){
+  x %>%
+    select(-c(mean)) %>%
+    summarise(temperature = f(T))
+}
+
 #### RESULTS: TEMP, MEAN, SD POOL, AND HEDGEs G (PLASTICITY) ####
 
 min_values <- temp_ampli(subdata, min)
@@ -84,10 +92,20 @@ result$hedgesg <- mapply(hed_g, mean_min_values$mean_variable,
                           mean_max_values$mean_variable,
                           result$sd_pool)
 
+#### CLEAN DATA ####
+
+min_test_values <- test_equal_temperature(min_values, mean)
+max_test_values <- test_equal_temperature(max_values, mean)
+
+is_equal <- function(x, y) x == y
+result_equal <- mapply(is_equal, min_test_values$temperature, max_test_values$temperature)
+
+result <- result[-c(which(result_equal)), ]
+
 result <- result %>% 
-  filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg), hedgesg != 0) %>%
+  filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
   select(-sd_pool)
 
-#### VER ONDE TEM TEMPERATURAS NEGATIVAS IGUAIS ####
-#### CALCULO COM STATUS DE CONSERVACAO ####
 #### calculo do musse ###
+
+#make.musse.multitrait()
