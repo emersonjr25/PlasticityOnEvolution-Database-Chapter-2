@@ -54,7 +54,8 @@ temp_ampli <- function(x, f){
 mean_calculation <- function(x, f){
   x %>%
     select(-c(T)) %>%
-    summarise(mean_variable = f(mean))
+    summarise(mean_variable = f(mean))# %>%
+    #mutate(mean_variable = abs(mean_variable))
 }
 
 hed_g <- function(mean1, mean2, sd_p){
@@ -84,5 +85,9 @@ result$hedgesg <- mapply(hed_g, mean_min_values$mean_variable,
                           result$sd_pool)
 
 result <- result %>% 
-  filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
+  filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg), hedgesg != 0) %>%
   select(-sd_pool)
+
+#### VER ONDE TEM TEMPERATURAS NEGATIVAS IGUAIS ####
+#### CALCULO COM STATUS DE CONSERVACAO ####
+#### calculo do musse ###
