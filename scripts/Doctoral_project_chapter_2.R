@@ -117,7 +117,12 @@ species_info_ott <- tnrs_match_names(species)
 species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
 
 species_info_ncbi <- classification(species, db='ncbi')
-species_tree_ncbi <- class2tree(species_id_ncbi, check = TRUE)
+
+species_info_ncbi2 <- do.call(rbind, species_info_ncbi)
+species_info_ncbi2 <- taxonomy %>%
+  filter(rank == 'species')
+
+species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
 
 plot(species_tree_ott)
 plot(species_tree_ncbi)
