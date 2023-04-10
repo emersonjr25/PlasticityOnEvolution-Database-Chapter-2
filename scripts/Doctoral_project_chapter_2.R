@@ -11,6 +11,9 @@ library(tidyverse)
 library(effectsize)
 library(diversitree)
 library(here)
+library(rotl)
+library(ape)
+library(taxize)
 
 ### READING DATA ###
 
@@ -105,6 +108,19 @@ result <- result[-c(which(result_equal)), ]
 result <- result %>% 
   filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
   select(-sd_pool)
+
+#### phylogeny construction ####
+
+species <- unique(result$species_complete)
+
+species_info_ott <- tnrs_match_names(species)
+species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
+
+species_info_ncbi <- classification(species, db='ncbi')
+species_tree_ncbi <- class2tree(species_id_ncbi, check = TRUE)
+
+plot(species_tree_ott)
+plot(species_tree_ncbi)
 
 #### MUSSE CALCULATION ###
 
