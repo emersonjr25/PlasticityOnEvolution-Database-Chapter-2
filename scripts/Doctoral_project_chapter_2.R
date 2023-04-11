@@ -109,24 +109,62 @@ result <- result %>%
   filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
   select(-sd_pool)
 
-#### phylogeny construction ####
+#### Preparation to MUSSE ####
+trait_frequent <- result %>%
+  group_by(simp_trait) %>%
+  summarise(len = length(simp_trait)) %>%
+  arrange(desc(len))
 
-species <- unique(result$species_complete)
+result_all_species <- result %>% 
+  group_by(species_complete) %>%
+  summarise(hedgesg = mean(hedgesg))
+
+result_mass <- result %>%
+  group_by(species_complete) %>%
+  filter(simp_trait == 'Mass') %>%
+  summarise(hedgesg = mean(hedgesg))
+
+#### phylogeny construction ####
+species <- unique(result_all_species$species_complete)
+species_mass <- unique(result_mass$species_complete)
 
 species_info_ott <- tnrs_match_names(species)
 species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
 
+#species_info_ott2 <- tnrs_match_names(species_mass)
+#species_tree_ott2 <- tol_induced_subtree(ott_ids = species_info_ott2$ott_id)
+
 species_info_ncbi <- classification(species, db='ncbi')
-
-species_info_ncbi2 <- do.call(rbind, species_info_ncbi)
-species_info_ncbi2 <- taxonomy %>%
-  filter(rank == 'species')
-
 species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
+species_tree_ncbi <- species_tree_ncbi$phylo
+
+#species_info_ncbi2 <- classification(species_mass, db='ncbi')
+#species_tree_ncbi2 <- class2tree(species_info_ncbi2, check = TRUE)
+#species_tree_ncbi2 <- species_tree_ncbi2$phylo
 
 plot(species_tree_ott)
 plot(species_tree_ncbi)
 
 #### MUSSE CALCULATION ###
+### STATES ###
+hedgesg <- abs(result_all_species$hedgesg)
+hedgesg_mass <- abs(result_mass$hedgesg)
 
-#make.musse.multitrait()
+states <- function(x){
+  if(x <= 0.2){
+    x <- 0
+  } else if (x > 0.2 & x <= 0.5){
+    x <- 1
+  } else if(x > 0.5 & x <= 0.8){
+    x <- 2
+  } else if(x > 0.8){
+    x <- 3
+  }
+}
+hedgesg <- sapply(hedgesg, states)
+hedgesg_mass <- sapply(hedgesg_mass, states)
+
+##### MUSSE ####
+musse <- make.musse(species_tree_ncbi, states = hedgesg)
+#resu_musse <- find.mle(musse, method="subplex")
+#resu_musse$par
