@@ -173,7 +173,7 @@ resolved_tree$tip.label <- result_all_species$species_complete
 musse <- make.musse(resolved_tree, states = hedgesg, k = 4)
 p <- starting.point.musse(resolved_tree, k=4)
 
-ordered_musse <- starting.point.musse(resolved_tree)
+#ordered_musse <- constrain(p, lambda2~0)
 musse_constrain <- p[argnames(ordered_musse)]
 
 result_musse <- find.mle(musse, p)
