@@ -170,9 +170,10 @@ hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 ##### MUSSE ####
 resolved_tree <- multi2di(species_tree_ncbi)
 resolved_tree$tip.label <- result_all_species$species_complete
-#resolved_tree <- drop.tip(resolved_tree, tip = which(!is.rooted(resolved_tree) & sapply(resolved_tree$edge, length) == 1))
 musse <- make.musse(resolved_tree, states = hedgesg, k = 4)
 p <- starting.point.musse(resolved_tree, k=4)
+
+ordered_musse <- starting.point.musse(resolved_tree)
 musse_constrain <- p[argnames(ordered_musse)]
 
 result_musse <- find.mle(musse, p)
