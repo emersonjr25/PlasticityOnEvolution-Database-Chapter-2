@@ -152,19 +152,28 @@ hedgesg_mass <- abs(result_mass$hedgesg)
 
 states <- function(x){
   if(x <= 0.2){
-    x <- 0
-  } else if (x > 0.2 & x <= 0.5){
     x <- 1
-  } else if(x > 0.5 & x <= 0.8){
+  } else if (x > 0.2 & x <= 0.5){
     x <- 2
-  } else if(x > 0.8){
+  } else if(x > 0.5 & x <= 0.8){
     x <- 3
+  } else if(x > 0.8){
+    x <- 4
   }
 }
+
 hedgesg <- sapply(hedgesg, states)
-hedgesg_mass <- sapply(hedgesg_mass, states)
+hedgesg <- setNames(hedgesg, result_all_species$species_complete)
+#hedgesg_mass <- sapply(hedgesg_mass, states)
+#hedgesg_mass <- setNames(hedgesg_mass, result_mass$hedgesg)
 
 ##### MUSSE ####
-musse <- make.musse(species_tree_ncbi, states = hedgesg)
-#resu_musse <- find.mle(musse, method="subplex")
+resolved_tree <- multi2di(species_tree_ncbi)
+resolved_tree$tip.label <- result_all_species$species_complete
+#resolved_tree <- drop.tip(resolved_tree, tip = which(!is.rooted(resolved_tree) & sapply(resolved_tree$edge, length) == 1))
+musse <- make.musse(resolved_tree, states = hedgesg, k = 4)
+p <- starting.point.musse(resolved_tree, k=4)
+musse_constrain <- p[argnames(ordered_musse)]
+
+result_musse <- find.mle(musse, p)
 #resu_musse$par
