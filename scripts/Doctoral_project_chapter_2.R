@@ -46,7 +46,9 @@ subdata <- subdata %>%
   mutate(id = as.integer(id), 
          mean = as.double(mean))
 
+################################################################################
 ### To calculate Hedge's we need a group with studies, species, and traits ####
+################################################################################
 
 ### FUNCTIONS ###
 temp_ampli <- function(x, f){
@@ -109,46 +111,17 @@ result <- result %>%
   filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
   select(-sd_pool)
 
-#### Preparation to MUSSE ####
-trait_frequent <- result %>%
-  group_by(simp_trait) %>%
-  summarise(len = length(simp_trait)) %>%
-  arrange(desc(len))
+################################################################################
+##### MUSSE TO ALL TRAITS - NCBI & OTT Database ################################
+################################################################################
 
+#### Preparation to MUSSE ####
 result_all_species <- result %>% 
   group_by(species_complete) %>%
   summarise(hedgesg = mean(hedgesg))
 
-result_mass <- result %>%
-  group_by(species_complete) %>%
-  filter(simp_trait == 'Mass') %>%
-  summarise(hedgesg = mean(hedgesg))
-
-#### phylogeny construction ####
-species <- unique(result_all_species$species_complete)
-species_mass <- unique(result_mass$species_complete)
-
-species_info_ott <- tnrs_match_names(species)
-species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
-
-#species_info_ott2 <- tnrs_match_names(species_mass)
-#species_tree_ott2 <- tol_induced_subtree(ott_ids = species_info_ott2$ott_id)
-
-species_info_ncbi <- classification(species, db='ncbi')
-species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
-species_tree_ncbi <- species_tree_ncbi$phylo
-
-#species_info_ncbi2 <- classification(species_mass, db='ncbi')
-#species_tree_ncbi2 <- class2tree(species_info_ncbi2, check = TRUE)
-#species_tree_ncbi2 <- species_tree_ncbi2$phylo
-
-plot(species_tree_ott)
-plot(species_tree_ncbi)
-
-#### MUSSE CALCULATION ###
 ### STATES ###
 hedgesg <- abs(result_all_species$hedgesg)
-hedgesg_mass <- abs(result_mass$hedgesg)
 
 states <- function(x){
   if(x <= 0.2){
@@ -164,25 +137,97 @@ states <- function(x){
 
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
-#hedgesg_mass <- sapply(hedgesg_mass, states)
-#hedgesg_mass <- setNames(hedgesg_mass, result_mass$hedgesg)
 
-##### MUSSE ####
-resolved_tree <- multi2di(species_tree_ncbi)
-resolved_tree$tip.label <- result_all_species$species_complete
-musse <- make.musse(resolved_tree, states = hedgesg, k = 4)
-init <- starting.point.musse(resolved_tree, k = 4)
+species <- unique(result_all_species$species_complete)
 
+#### phylogeny construction - NCBI ####
+species_info_ncbi <- classification(species, db='ncbi')
+species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
+species_tree_ncbi <- species_tree_ncbi$phylo
+
+#plot(species_tree_ncbi)
+
+### MUSSE CALCULATION NCBI ###
+resolved_tree_ncbi <- multi2di(species_tree_ncbi)
+resolved_tree_ncbi$tip.label <- result_all_species$species_complete
+musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 4)
+init <- starting.point.musse(resolved_tree_ncbi, k = 4)
+result_musse <- find.mle(musse, x.init = init)
+
+# constrain #
 musse_null <- constrain(musse, lambda2 ~ 0, lambda3 ~ 0,
-                       lambda4 ~ 0, mu2 ~ 0, mu3 ~ 0,
-                       mu4 ~ 0, q13 ~ 0, q31 ~ 0, 
-                       q41 ~0, q23 ~ 0, q24 ~ 0)
-
-result_musse <- find.mle(musse, x.init = init[argnames(musse)])
+                        lambda4 ~ 0, mu2 ~ 0, mu3 ~ 0,
+                        mu4 ~ 0, q13 ~ 0, q31 ~ 0, 
+                        q41 ~0, q23 ~ 0, q24 ~ 0)
 result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
 
-is.finite(init[argnames(musse_null)])
-#ordered_musse <- constrain(p, lambda2~0)
+#### phylogeny construction - OTT ####
+# species_info_ott <- tnrs_match_names(species)
+# species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
+# 
+# #plot(species_tree_ott)
+# 
+# #### MUSSE CALCULATION OTT - without edge.length - not ultrametric ###
+# resolved_tree_ott <- multi2di(species_tree_ott)
+# resolved_tree_ott$tip.label <- result_all_species$species_complete
+# musse <- make.musse(resolved_tree_ott, states = hedgesg, k = 4)
+# init <- starting.point.musse(resolved_tree, k = 4)
+# result_musse <- find.mle(musse, x.init = init)
 
-result_musse <- find.mle(musse, p)
-#resu_musse$par
+################################################################################
+##### MUSSE TO MORE FREQUENT TRAIT - NCBI & OTT Database #######################
+################################################################################
+
+### preparation MUSSE ###
+trait_frequent <- result %>%
+  group_by(simp_trait) %>%
+  summarise(len = length(simp_trait)) %>%
+  arrange(desc(len))
+
+result_mass <- result %>%
+  group_by(species_complete) %>%
+  filter(simp_trait == 'Mass') %>%
+  summarise(hedgesg = mean(hedgesg))
+
+hedgesg_mass <- abs(result_mass$hedgesg)
+
+states <- function(x){
+  if(x <= 0.2){
+    x <- 1
+  } else if (x > 0.2 & x <= 0.5){
+    x <- 2
+  } else if(x > 0.5 & x <= 0.8){
+    x <- 3
+  } else if(x > 0.8){
+    x <- 4
+  }
+}
+
+hedgesg_mass <- sapply(hedgesg_mass, states)
+hedgesg_mass <- setNames(hedgesg_mass, result_mass$species_complete)
+
+species_mass <- unique(result_mass$species_complete)
+
+### phylogenetic construction mass - NCBI ###
+species_info_ncbi_mass <- classification(species_mass, db='ncbi')
+species_info_ncbi_mass <- class2tree(species_info_ncbi_mass, check = TRUE)
+species_tree_ncbi_mass <- species_info_ncbi_mass$phylo
+
+plot(species_tree_ncbi_mass)
+
+resolved_tree_ncbi_mass <- multi2di(species_tree_ncbi_mass)
+resolved_tree_ncbi_mass$tip.label <- result_mass$species_complete
+musse <- make.musse(resolved_tree_ncbi_mass, states = hedgesg_mass, k = 4)
+init <- starting.point.musse(resolved_tree_ncbi_mass, k = 4)
+result_musse <- find.mle(musse, x.init = init)
+
+### phylogenetic construction mass - OTT ###
+# species_info_ott_mass <- tnrs_match_names(species_mass)
+# species_tree_ott_mass <- tol_induced_subtree(ott_ids = species_info_ott_mass$ott_id)
+# plot(species_tree_ott_mass)
+# 
+# resolved_tree_ott_mass <- multi2di(species_tree_ott_mass)
+# resolved_tree_ott_mass$tip.label <- result_mass$species_complete
+# musse <- make.musse(resolved_tree_ott_mass, states = hedgesg_mass, k = 4)
+# init <- starting.point.musse(resolved_tree_ott_mass, k = 4)
+# result_musse <- find.mle(musse, x.init = init)
