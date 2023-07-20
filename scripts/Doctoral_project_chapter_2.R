@@ -9,11 +9,11 @@
 ### PACKAGES ####
 library(tidyverse)
 library(effectsize)
-library(diversitree)
 library(here)
 library(rotl)
 library(ape)
 library(taxize)
+library(diversitree)
 
 ### READING DATA ###
 
@@ -171,10 +171,18 @@ hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 resolved_tree <- multi2di(species_tree_ncbi)
 resolved_tree$tip.label <- result_all_species$species_complete
 musse <- make.musse(resolved_tree, states = hedgesg, k = 4)
-p <- starting.point.musse(resolved_tree, k=4)
+init <- starting.point.musse(resolved_tree, k = 4)
 
+musse_null <- constrain(musse, lambda2 ~ 0, lambda3 ~ 0,
+                       lambda4 ~ 0, mu2 ~ 0, mu3 ~ 0,
+                       mu4 ~ 0, q13 ~ 0, q31 ~ 0, 
+                       q41 ~0, q23 ~ 0, q24 ~ 0)
+
+result_musse <- find.mle(musse, x.init = init[argnames(musse)])
+result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
+
+is.finite(init[argnames(musse_null)])
 #ordered_musse <- constrain(p, lambda2~0)
-musse_constrain <- p[argnames(ordered_musse)]
 
 result_musse <- find.mle(musse, p)
 #resu_musse$par
