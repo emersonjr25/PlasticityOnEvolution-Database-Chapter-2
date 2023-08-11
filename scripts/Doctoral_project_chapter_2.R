@@ -14,6 +14,7 @@ library(rotl)
 library(ape)
 library(taxize)
 library(diversitree)
+library(RRphylo)
 
 ### READING DATA ###
 
@@ -112,7 +113,7 @@ result <- result %>%
   select(-sd_pool)
 
 ################################################################################
-##### MUSSE TO ALL TRAITS - NCBI & OTT Database ################################
+##### MUSSE TO ALL TRAITS - NCBI Database ################################
 ################################################################################
 
 #### Preparation to MUSSE ####
@@ -121,59 +122,6 @@ result_all_species <- result %>%
   summarise(hedgesg = mean(hedgesg))
 
 ### STATES ###
-
-### TEST ####
-hedgesg <- abs(result_all_species$hedgesg)
-
-states <- function(x){
-  if(x <= 0.5){
-    x <- 1
-  } else {
-    x <- 2
-  }
-}
-
-hedgesg <- sapply(hedgesg, states)
-hedgesg <- setNames(hedgesg, result_all_species$species_complete)
-
-species <- unique(result_all_species$species_complete)
-
-#### phylogeny construction - NCBI ####
-species_info_ncbi <- classification(species, db='ncbi')
-species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
-species_tree_ncbi <- species_tree_ncbi$phylo
-
-plot(species_tree_ncbi)
-
-### MUSSE CALCULATION NCBI ###]
-resolved_tree_ncbi <- multi2di(species_tree_ncbi)
-species_wrong <- names(hedgesg)[!names(hedgesg) %in% resolved_tree_ncbi$tip.label]
-species_wrong2 <- resolved_tree_ncbi$tip.label[!resolved_tree_ncbi$tip.label %in% names(hedgesg)]
-
-### manual corrections in phylogeny ###
-names(hedgesg)[grepl('rufo', names(hedgesg))] <- species_wrong2[species_wrong2 == "Lycodon rufozonatus"]
-resolved_tree_ncbi$tip.label[grepl('Elaphe tae', resolved_tree_ncbi$tip.label)] <- species_wrong[2]
-names(hedgesg)[grepl('maccoyi', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Anepischetosia maccoyi.x"]
-names(hedgesg)[grepl('maccoyi', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Anepischetosia maccoyi.y"]
-names(hedgesg)[grepl('sinensis', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Mauremys sinensis"]
-names(hedgesg)[grepl('piscator', names(hedgesg))] <- species_wrong2[species_wrong2 == "Fowlea piscator"]
-names(hedgesg)[grepl('lesueurii', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
-names(hedgesg)[grepl('lesueurii', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Intellagama lesueurii"]
-
-
-musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 2)
-init <- starting.point.musse(resolved_tree_ncbi, k = 2)
-result_musse <- find.mle(musse, x.init = init)
-
-# constrain #
-musse_null <- constrain(musse, lambda2 ~ 0, lambda3 ~ 0,
-                        lambda4 ~ 0, mu2 ~ 0, mu3 ~ 0,
-                        mu4 ~ 0, q13 ~ 0, q31 ~ 0, 
-                        q41 ~0, q23 ~ 0, q24 ~ 0)
-result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
-
-###################################################################
-
 hedgesg <- abs(result_all_species$hedgesg)
 
 states <- function(x){
@@ -198,37 +146,37 @@ species_info_ncbi <- classification(species, db='ncbi')
 species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
 species_tree_ncbi <- species_tree_ncbi$phylo
 
-#plot(species_tree_ncbi)
-
 ### MUSSE CALCULATION NCBI ###
 resolved_tree_ncbi <- multi2di(species_tree_ncbi)
-resolved_tree_ncbi$tip.label <- result_all_species$species_complete
+species_wrong <- names(hedgesg)[!names(hedgesg) %in% resolved_tree_ncbi$tip.label]
+species_wrong2 <- resolved_tree_ncbi$tip.label[!resolved_tree_ncbi$tip.label %in% names(hedgesg)]
+
+### manual corrections in phylogeny ###
+names(hedgesg)[grepl('ruf', names(hedgesg))] <- species_wrong2[species_wrong2 == "Lycodon rufozonatus"]
+resolved_tree_ncbi$tip.label[grepl('Elaphe tae', resolved_tree_ncbi$tip.label)] <- species_wrong[species_wrong == "Elaphe taeniura"]
+names(hedgesg)[grepl('maccoyi', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Anepischetosia maccoyi.x"]
+names(hedgesg)[grepl('maccoyi', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Anepischetosia maccoyi.y"]
+names(hedgesg)[grepl('sinensis', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Mauremys sinensis"]
+names(hedgesg)[grepl('piscator', names(hedgesg))] <- species_wrong2[species_wrong2 == "Fowlea piscator"]
+names(hedgesg)[grepl('lesueurii', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
+names(hedgesg)[grepl('lesueurii', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Intellagama lesueurii"]
+
+#### musse ####
+resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
 musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 4)
 init <- starting.point.musse(resolved_tree_ncbi, k = 4)
 result_musse <- find.mle(musse, x.init = init)
+round(result_musse$par, 9)
 
-# constrain #
+# musse constrain #
 musse_null <- constrain(musse, lambda2 ~ 0, lambda3 ~ 0,
                         lambda4 ~ 0, mu2 ~ 0, mu3 ~ 0,
                         mu4 ~ 0, q13 ~ 0, q31 ~ 0, 
-                        q41 ~0, q23 ~ 0, q24 ~ 0)
+                        q41 ~ 0, q23 ~ 0, q24 ~ 0)
 result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
 
-#### phylogeny construction - OTT ####
-# species_info_ott <- tnrs_match_names(species)
-# species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
-# 
-# #plot(species_tree_ott)
-# 
-# #### MUSSE CALCULATION OTT - without edge.length - not ultrametric ###
-# resolved_tree_ott <- multi2di(species_tree_ott)
-# resolved_tree_ott$tip.label <- result_all_species$species_complete
-# musse <- make.musse(resolved_tree_ott, states = hedgesg, k = 4)
-# init <- starting.point.musse(resolved_tree, k = 4)
-# result_musse <- find.mle(musse, x.init = init)
-
 ################################################################################
-##### MUSSE TO MORE FREQUENT TRAIT - NCBI & OTT Database #######################
+##### MUSSE TO MORE FREQUENT TRAIT - NCBI  Database #######################
 ################################################################################
 
 ### preparation MUSSE ###
@@ -263,8 +211,24 @@ species_mass <- unique(result_mass$species_complete)
 
 ### phylogenetic construction mass - NCBI ###
 species_info_ncbi_mass <- classification(species_mass, db='ncbi')
-species_info_ncbi_mass <- class2tree(species_info_ncbi_mass, check = TRUE)
+species_info_ncbi_mass <- class2tree(species_info_ncbi_mass)
 species_tree_ncbi_mass <- species_info_ncbi_mass$phylo
+
+### MUSSE CALCULATION NCBI ###
+resolved_tree_ncbi <- multi2di(species_tree_ncbi_mass)
+species_wrong <- names(hedgesg_mass)[!names(hedgesg_mass) %in% resolved_tree_ncbi$tip.label]
+species_wrong2 <- resolved_tree_ncbi$tip.label[!resolved_tree_ncbi$tip.label %in% names(hedgesg_mass)]
+
+### manual corrections in phylogeny ###
+names(hedgesg_mass)[grepl('piscator', names(hedgesg_mass))] <- species_wrong2[species_wrong2 == "Fowlea piscator"]
+names(hedgesg_mass)[grepl('lesueurii', names(hedgesg_mass))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
+
+#### musse ####
+resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
+musse <- make.musse(resolved_tree_ncbi, states = hedgesg_mass, k = 4)
+init <- starting.point.musse(resolved_tree_ncbi, k = 4)
+result_musse <- find.mle(musse, x.init = init)
+round(result_musse$par, 7)
 
 plot(species_tree_ncbi_mass)
 
@@ -273,6 +237,20 @@ resolved_tree_ncbi_mass$tip.label <- result_mass$species_complete
 musse <- make.musse(resolved_tree_ncbi_mass, states = hedgesg_mass, k = 4)
 init <- starting.point.musse(resolved_tree_ncbi_mass, k = 4)
 result_musse <- find.mle(musse, x.init = init)
+
+########################################################
+#### phylogeny construction - OTT ####
+#species_info_ott <- tnrs_match_names(species)
+#species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
+# 
+#plot(species_tree_ott)
+# 
+# #### MUSSE CALCULATION OTT - without edge.length - not ultrametric ###
+#resolved_tree_ott <- multi2di(species_tree_ott)
+#resolved_tree_ott$tip.label <- result_all_species$species_complete
+# musse <- make.musse(resolved_tree_ott, states = hedgesg, k = 4)
+# init <- starting.point.musse(resolved_tree, k = 4)
+# result_musse <- find.mle(musse, x.init = init)
 
 ### phylogenetic construction mass - OTT ###
 # species_info_ott_mass <- tnrs_match_names(species_mass)
