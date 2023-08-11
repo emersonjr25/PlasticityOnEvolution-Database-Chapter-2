@@ -15,6 +15,8 @@ library(ape)
 library(taxize)
 library(diversitree)
 library(RRphylo)
+library(phytools)
+library(geiger)
 
 ### READING DATA ###
 
@@ -169,12 +171,16 @@ result_musse <- find.mle(musse, x.init = init)
 round(result_musse$par, 9)
 
 # musse constrain #
-musse_null <- constrain(musse, lambda2 ~ 0, lambda3 ~ 0,
-                        lambda4 ~ 0, mu2 ~ 0, mu3 ~ 0,
-                        mu4 ~ 0, q13 ~ 0, q31 ~ 0, 
-                        q41 ~ 0, q23 ~ 0, q24 ~ 0)
+musse_null <- constrain(musse, lambda2 ~ lambda1, lambda3 ~ lambda1,
+                        lambda4 ~ lambda1, mu2 ~ mu1, mu3 ~ mu1, mu4 ~ mu1, 
+                        q13 ~ 0, q31 ~ 0, q41 ~ 0, q23 ~ 0, q24 ~ 0)
 result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
+round(result_musse_null$par, 9)
 
+anova <- anova(result_musse_null, 
+      all.different=result_musse)
+
+plot(resolved_tree_ncbi)
 ################################################################################
 ##### MUSSE TO MORE FREQUENT TRAIT - NCBI  Database #######################
 ################################################################################
