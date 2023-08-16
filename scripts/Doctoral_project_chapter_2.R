@@ -200,11 +200,9 @@ states <- function(x){
     x <- 1
   } else if (x > 0.2 & x <= 0.5){
     x <- 2
-  } else if(x > 0.5 & x <= 0.8){
+  } else if(x > 0.5){
     x <- 3
-  } else if(x > 0.8){
-    x <- 4
-  }
+  } 
 }
 
 hedgesg_mass <- sapply(hedgesg_mass, states)
@@ -228,40 +226,9 @@ names(hedgesg_mass)[grepl('lesueurii', names(hedgesg_mass))][1] <- species_wrong
 
 #### musse ####
 resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
-musse <- make.musse(resolved_tree_ncbi, states = hedgesg_mass, k = 4)
-init <- starting.point.musse(resolved_tree_ncbi, k = 4)
+musse <- make.musse(resolved_tree_ncbi, states = hedgesg_mass, k = 3)
+init <- starting.point.musse(resolved_tree_ncbi, k = 3)
 result_musse <- find.mle(musse, x.init = init)
 round(result_musse$par, 7)
 
-plot(species_tree_ncbi_mass)
-
-resolved_tree_ncbi_mass <- multi2di(species_tree_ncbi_mass)
-resolved_tree_ncbi_mass$tip.label <- result_mass$species_complete
-musse <- make.musse(resolved_tree_ncbi_mass, states = hedgesg_mass, k = 4)
-init <- starting.point.musse(resolved_tree_ncbi_mass, k = 4)
-result_musse <- find.mle(musse, x.init = init)
-
-########################################################
-#### phylogeny construction - OTT ####
-#species_info_ott <- tnrs_match_names(species)
-#species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
-# 
-#plot(species_tree_ott)
-# 
-# #### MUSSE CALCULATION OTT - without edge.length - not ultrametric ###
-#resolved_tree_ott <- multi2di(species_tree_ott)
-#resolved_tree_ott$tip.label <- result_all_species$species_complete
-# musse <- make.musse(resolved_tree_ott, states = hedgesg, k = 4)
-# init <- starting.point.musse(resolved_tree, k = 4)
-# result_musse <- find.mle(musse, x.init = init)
-
-### phylogenetic construction mass - OTT ###
-# species_info_ott_mass <- tnrs_match_names(species_mass)
-# species_tree_ott_mass <- tol_induced_subtree(ott_ids = species_info_ott_mass$ott_id)
-# plot(species_tree_ott_mass)
-# 
-# resolved_tree_ott_mass <- multi2di(species_tree_ott_mass)
-# resolved_tree_ott_mass$tip.label <- result_mass$species_complete
-# musse <- make.musse(resolved_tree_ott_mass, states = hedgesg_mass, k = 4)
-# init <- starting.point.musse(resolved_tree_ott_mass, k = 4)
-# result_musse <- find.mle(musse, x.init = init)
+plotTree(species_tree_ncbi_mass)
