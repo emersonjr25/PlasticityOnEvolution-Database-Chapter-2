@@ -131,11 +131,9 @@ states <- function(x){
     x <- 1
   } else if (x > 0.2 & x <= 0.5){
     x <- 2
-  } else if(x > 0.5 & x <= 0.8){
+  } else if(x > 0.5){
     x <- 3
-  } else if(x > 0.8){
-    x <- 4
-  }
+  } 
 }
 
 hedgesg <- sapply(hedgesg, states)
@@ -165,22 +163,21 @@ names(hedgesg)[grepl('lesueurii', names(hedgesg))][2] <- species_wrong2[species_
 
 #### musse ####
 resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
-musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 4)
-init <- starting.point.musse(resolved_tree_ncbi, k = 4)
+musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
+init <- starting.point.musse(resolved_tree_ncbi, k = 3)
 result_musse <- find.mle(musse, x.init = init)
 round(result_musse$par, 9)
 
 # musse constrain #
 musse_null <- constrain(musse, lambda2 ~ lambda1, lambda3 ~ lambda1,
-                        lambda4 ~ lambda1, mu2 ~ mu1, mu3 ~ mu1, mu4 ~ mu1, 
-                        q13 ~ 0, q31 ~ 0, q41 ~ 0, q23 ~ 0, q24 ~ 0)
+                       mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q31 ~ 0, q23 ~ 0)
 result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
 round(result_musse_null$par, 9)
 
 anova <- anova(result_musse_null, 
       all.different=result_musse)
 
-plot(resolved_tree_ncbi)
+plotTree(resolved_tree_ncbi)
 ################################################################################
 ##### MUSSE TO MORE FREQUENT TRAIT - NCBI  Database #######################
 ################################################################################
