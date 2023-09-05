@@ -174,10 +174,15 @@ musse_null <- constrain(musse, lambda2 ~ lambda1, lambda3 ~ lambda1,
 result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
 round(result_musse_null$par, 9)
 
-anova <- anova(result_musse_null, 
+anova_result <- anova(result_musse_null, 
       all.different=result_musse)
 
+aicw(setNames(anova_result$AIC, row.names(anova_result)))
+coef(result_musse)
+logLik(result_musse)
+AIC(result_musse)
 plotTree(resolved_tree_ncbi)
+
 ################################################################################
 ##### MUSSE TO MORE FREQUENT TRAIT - NCBI  Database #######################
 ################################################################################
