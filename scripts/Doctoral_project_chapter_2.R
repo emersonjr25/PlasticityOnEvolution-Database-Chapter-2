@@ -183,6 +183,36 @@ logLik(result_musse)
 AIC(result_musse)
 plotTree(resolved_tree_ncbi)
 
+#### Baysean MCMC ####
+prior <- make.prior.exponential(1/2)
+prior
+
+preliminar <- mcmc(musse, result_musse$par, nsteps=100, 
+                   prior=prior, w=1, print.every = 0)
+head(preliminar)
+w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
+
+mcmc_result <- mcmc(musse, init[colnames(w)], nsteps=100,
+                    prior=prior, w=w, print.every=10)
+head(mcmc_result)
+plot(mcmc_result$i, mcmc_result$p, type='l', 
+     xlab='generation', ylab='log(L)')
+mcmc_result <- mcmc_result[21:100, ]
+colMeans(mcmc_result)[2:ncol(mcmc_result)]
+colors <- setNames(c('yellow', 'green', 'red'), 1:3)
+profiles.plot(mcmc_result[, grep('lambda', colnames(mcmc_result))],
+              col.line=colors, las=1, legend.pos = 'topright')
+profiles.plot(mcmc_result[, grep('mu', colnames(mcmc_result))],
+              col.line=colors, las=1, legend.pos = 'topright')
+net_div <- mcmc_result[, grep('lambda', colnames(mcmc_result))] -
+  mcmc_result[, grep('mu', colnames(mcmc_result))]
+colnames(net_div) <- paste('lambda-mu(', 1:3, ")", sep="")
+profiles.plot(net_div,
+              xlab="Net diversification rate",
+              ylab="Probability density",
+              legend.pos='topleft', col.line=setNames(colors, colnames(net_div)),
+              lty=1)
+
 ################################################################################
 ##### MUSSE TO MORE FREQUENT TRAIT - NCBI  Database #######################
 ################################################################################
