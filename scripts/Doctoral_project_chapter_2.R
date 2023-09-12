@@ -139,6 +139,12 @@ states <- function(x){
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 
+### histogram ###
+table_histogram <- as.data.frame(hedgesg)
+ggplot(test, aes(x = hedgesg)) + geom_bar() + 
+  scale_x_continuous(breaks = 1:16) + 
+  labs(x="Hedge's g effect", y= "Frequency")
+
 species <- unique(result_all_species$species_complete)
 
 #### phylogeny construction - NCBI ####
