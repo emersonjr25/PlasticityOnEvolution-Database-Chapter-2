@@ -16,8 +16,10 @@ library(taxize)
 library(diversitree)
 library(RRphylo)
 library(phytools)
+library(ggplot2)
 library(geiger)
-
+library(randtip)
+??randtip
 ### READING DATA ###
 
 dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",") 
@@ -141,16 +143,36 @@ hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 
 ### histogram ###
 table_histogram <- as.data.frame(hedgesg)
-ggplot(test, aes(x = hedgesg)) + geom_bar() + 
+ggplot(table_histogram, aes(x = hedgesg)) + 
+  geom_bar() + 
   scale_x_continuous(breaks = 1:16) + 
   labs(x="Hedge's g effect", y= "Frequency")
 
 species <- unique(result_all_species$species_complete)
 
+species_info_ott <- tnrs_match_names(species)
+species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
+
 #### phylogeny construction - NCBI ####
 species_info_ncbi <- classification(species, db='ncbi')
 species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
 species_tree_ncbi <- species_tree_ncbi$phylo
+
+##################################################################
+species_wrong <- names(hedgesg)[!names(hedgesg) %in% species_tree_ncbi$tip.label]
+species_wrong2 <- species_tree_ncbi$tip.label[!species_tree_ncbi$tip.label %in% names(hedgesg)]
+species_tree_ncbi$tip.label[grepl('Elaphe tae', species_tree_ncbi$tip.label)] <- species_wrong[species_wrong == "Elaphe taeniura"]
+info_fix_poly <- build_info(species, species_tree_ncbi, db="ncbi")
+input_fix_poly <- info2input(info_fix_poly, species_tree_ncbi)
+tree_solved <- rand_tip(input = input_fix_poly, tree = species_tree_ncbi,
+                        forceultrametric=TRUE)
+test <- fix.poly(tree_solved, type='resolve')
+test2 <- fix.poly(species_tree_ncbi, type='resolve')
+musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
+init <- starting.point.musse(resolved_tree_ncbi, k = 3)
+result_musse <- find.mle(musse, x.init = init)
+round(result_musse$par, 9)
+##################################################################
 
 ### MUSSE CALCULATION NCBI ###
 resolved_tree_ncbi <- multi2di(species_tree_ncbi)
