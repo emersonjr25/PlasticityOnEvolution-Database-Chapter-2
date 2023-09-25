@@ -19,7 +19,7 @@ library(phytools)
 library(ggplot2)
 library(geiger)
 library(randtip)
-??randtip
+
 ### READING DATA ###
 
 dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",") 
@@ -140,6 +140,7 @@ states <- function(x){
 
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
+species <- unique(result_all_species$species_complete)
 
 ### histogram ###
 table_histogram <- as.data.frame(hedgesg)
@@ -148,31 +149,10 @@ ggplot(table_histogram, aes(x = hedgesg)) +
   scale_x_continuous(breaks = 1:16) + 
   labs(x="Hedge's g effect", y= "Frequency")
 
-species <- unique(result_all_species$species_complete)
-
-species_info_ott <- tnrs_match_names(species)
-species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
-
 #### phylogeny construction - NCBI ####
 species_info_ncbi <- classification(species, db='ncbi')
 species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
 species_tree_ncbi <- species_tree_ncbi$phylo
-
-##################################################################
-species_wrong <- names(hedgesg)[!names(hedgesg) %in% species_tree_ncbi$tip.label]
-species_wrong2 <- species_tree_ncbi$tip.label[!species_tree_ncbi$tip.label %in% names(hedgesg)]
-species_tree_ncbi$tip.label[grepl('Elaphe tae', species_tree_ncbi$tip.label)] <- species_wrong[species_wrong == "Elaphe taeniura"]
-info_fix_poly <- build_info(species, species_tree_ncbi, db="ncbi")
-input_fix_poly <- info2input(info_fix_poly, species_tree_ncbi)
-tree_solved <- rand_tip(input = input_fix_poly, tree = species_tree_ncbi,
-                        forceultrametric=TRUE)
-test <- fix.poly(tree_solved, type='resolve')
-test2 <- fix.poly(species_tree_ncbi, type='resolve')
-musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
-init <- starting.point.musse(resolved_tree_ncbi, k = 3)
-result_musse <- find.mle(musse, x.init = init)
-round(result_musse$par, 9)
-##################################################################
 
 ### MUSSE CALCULATION NCBI ###
 resolved_tree_ncbi <- multi2di(species_tree_ncbi)
@@ -189,43 +169,56 @@ names(hedgesg)[grepl('piscator', names(hedgesg))] <- species_wrong2[species_wron
 names(hedgesg)[grepl('lesueurii', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
 names(hedgesg)[grepl('lesueurii', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Intellagama lesueurii"]
 
-#### musse ####
+###################### musse ##########################
 resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
+
+# complete musse model #
 musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
 init <- starting.point.musse(resolved_tree_ncbi, k = 3)
 result_musse <- find.mle(musse, x.init = init)
 round(result_musse$par, 9)
 
-# musse constrain #
+# musse with great transition steps #
+musse_restrictions <- constrain(musse, q13 ~ 0, q31 ~ 0)
+result_musse_restrictions <- find.mle(musse_restrictions, x.init = init[argnames(musse_restrictions)])
+round(result_musse_restrictions$par, 9)
+
+# musse null #
 musse_null <- constrain(musse, lambda2 ~ lambda1, lambda3 ~ lambda1,
-                       mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q31 ~ 0, q23 ~ 0)
+                        mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q31 ~ 0, q23 ~ 0)
 result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
 round(result_musse_null$par, 9)
 
+# anova to see best musse model #
 anova_result <- anova(result_musse_null, 
-      all.different=result_musse)
+      all.different=result_musse,
+      all.restriction=result_musse_restrictions)
 
+# look results to best model #
 aicw(setNames(anova_result$AIC, row.names(anova_result)))
-coef(result_musse)
-logLik(result_musse)
-AIC(result_musse)
+round(coef(result_musse_restrictions), 9)
+logLik(result_musse_restrictions)
+AIC(result_musse_restrictions)
 plotTree(resolved_tree_ncbi)
 
-#### Baysean MCMC ####
+#### Bayesian MCMC to best model ####
 prior <- make.prior.exponential(1/2)
-prior
 
-preliminar <- mcmc(musse, result_musse$par, nsteps=100, 
-                   prior=prior, w=1, print.every = 0)
-head(preliminar)
+preliminar <- mcmc(musse_restrictions, 
+                   result_musse_restrictions$par, 
+                   nsteps=100, prior=prior,
+                   w=1, print.every = 0)
+
 w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
 
-mcmc_result <- mcmc(musse, init[colnames(w)], nsteps=100,
-                    prior=prior, w=w, print.every=10)
-head(mcmc_result)
+mcmc_result <- mcmc(musse_restrictions, 
+                    init[colnames(w)], 
+                    nsteps=500,prior=prior, 
+                    w=w, print.every=10)
+
 plot(mcmc_result$i, mcmc_result$p, type='l', 
      xlab='generation', ylab='log(L)')
-mcmc_result <- mcmc_result[21:100, ]
+mcmc_result <- mcmc_result[100:nrow(mcmc_result), ]
 colMeans(mcmc_result)[2:ncol(mcmc_result)]
 colors <- setNames(c('yellow', 'green', 'red'), 1:3)
 profiles.plot(mcmc_result[, grep('lambda', colnames(mcmc_result))],
@@ -242,7 +235,7 @@ profiles.plot(net_div,
               lty=1)
 
 ################################################################################
-##### MUSSE TO MORE FREQUENT TRAIT - NCBI  Database #######################
+##### MUSSE TO MORE FREQUENT TRAIT #######################
 ################################################################################
 
 ### preparation MUSSE ###
@@ -279,19 +272,94 @@ species_info_ncbi_mass <- class2tree(species_info_ncbi_mass)
 species_tree_ncbi_mass <- species_info_ncbi_mass$phylo
 
 ### MUSSE CALCULATION NCBI ###
-resolved_tree_ncbi <- multi2di(species_tree_ncbi_mass)
-species_wrong <- names(hedgesg_mass)[!names(hedgesg_mass) %in% resolved_tree_ncbi$tip.label]
-species_wrong2 <- resolved_tree_ncbi$tip.label[!resolved_tree_ncbi$tip.label %in% names(hedgesg_mass)]
+resolved_tree_ncbi_mass <- multi2di(species_tree_ncbi_mass)
+species_wrong <- names(hedgesg_mass)[!names(hedgesg_mass) %in% resolved_tree_ncbi_mass$tip.label]
+species_wrong2 <- resolved_tree_ncbi_mass$tip.label[!resolved_tree_ncbi_mass$tip.label %in% names(hedgesg_mass)]
 
 ### manual corrections in phylogeny ###
-names(hedgesg_mass)[grepl('piscator', names(hedgesg_mass))] <- species_wrong2[species_wrong2 == "Fowlea piscator"]
-names(hedgesg_mass)[grepl('lesueurii', names(hedgesg_mass))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
+#names(hedgesg_mass)[grepl('piscator', names(hedgesg_mass))] <- species_wrong2[species_wrong2 == "Fowlea piscator"]
+#names(hedgesg_mass)[grepl('lesueurii', names(hedgesg_mass))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
 
 #### musse ####
-resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
-musse <- make.musse(resolved_tree_ncbi, states = hedgesg_mass, k = 3)
-init <- starting.point.musse(resolved_tree_ncbi, k = 3)
+resolved_tree_ncbi_mass <- fix.poly(resolved_tree_ncbi_mass, type='resolve')
+
+#### musse complete ###
+musse <- make.musse(resolved_tree_ncbi_mass, states = hedgesg_mass, k = 3)
+init <- starting.point.musse(resolved_tree_ncbi_mass, k = 3)
 result_musse <- find.mle(musse, x.init = init)
 round(result_musse$par, 7)
 
-plotTree(species_tree_ncbi_mass)
+# musse with great transition steps #
+musse_restrictions <- constrain(musse, q13 ~ 0, q31 ~ 0)
+result_musse_restrictions <- find.mle(musse_restrictions, x.init = init[argnames(musse_restrictions)])
+round(result_musse_restrictions$par, 9)
+
+# musse null #
+musse_null <- constrain(musse, lambda2 ~ lambda1, lambda3 ~ lambda1,
+                        mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q31 ~ 0, q23 ~ 0)
+result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
+round(result_musse_null$par, 9)
+
+# anova to see best musse model #
+anova_result <- anova(result_musse_null, 
+                      all.different=result_musse,
+                      all.restriction=result_musse_restrictions)
+
+# look results to best model #
+aicw(setNames(anova_result$AIC, row.names(anova_result)))
+round(coef(result_musse_restrictions), 9)
+logLik(result_musse_restrictions)
+AIC(result_musse_restrictions)
+plotTree(resolved_tree_ncbi)
+
+#### Bayesian MCMC to best model ####
+prior <- make.prior.exponential(1/2)
+
+preliminar <- mcmc(musse_restrictions, 
+                   result_musse_restrictions$par, 
+                   nsteps=100, prior=prior,
+                   w=1, print.every = 0)
+
+w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
+
+mcmc_result <- mcmc(musse_restrictions, 
+                    init[colnames(w)], 
+                    nsteps=500,prior=prior, 
+                    w=w, print.every=10)
+
+plot(mcmc_result$i, mcmc_result$p, type='l', 
+     xlab='generation', ylab='log(L)')
+mcmc_result <- mcmc_result[100:nrow(mcmc_result), ]
+colMeans(mcmc_result)[2:ncol(mcmc_result)]
+colors <- setNames(c('yellow', 'green', 'red'), 1:3)
+profiles.plot(mcmc_result[, grep('lambda', colnames(mcmc_result))],
+              col.line=colors, las=1, legend.pos = 'topright')
+profiles.plot(mcmc_result[, grep('mu', colnames(mcmc_result))],
+              col.line=colors, las=1, legend.pos = 'topright')
+net_div <- mcmc_result[, grep('lambda', colnames(mcmc_result))] -
+  mcmc_result[, grep('mu', colnames(mcmc_result))]
+colnames(net_div) <- paste('lambda-mu(', 1:3, ")", sep="")
+profiles.plot(net_div,
+              xlab="Net diversification rate",
+              ylab="Probability density",
+              legend.pos='topleft', col.line=setNames(colors, colnames(net_div)),
+              lty=1)
+
+
+##################################################################
+########### OTT AND NEW WAY TO CORRECT PHYLOGENY #################
+species_info_ott <- tnrs_match_names(species)
+species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
+species_wrong <- names(hedgesg)[!names(hedgesg) %in% species_tree_ncbi$tip.label]
+species_wrong2 <- species_tree_ncbi$tip.label[!species_tree_ncbi$tip.label %in% names(hedgesg)]
+species_tree_ncbi$tip.label[grepl('Elaphe tae', species_tree_ncbi$tip.label)] <- species_wrong[species_wrong == "Elaphe taeniura"]
+info_fix_poly <- build_info(species, species_tree_ncbi, db="ncbi")
+input_fix_poly <- info2input(info_fix_poly, species_tree_ncbi)
+tree_solved <- rand_tip(input = input_fix_poly, tree = species_tree_ncbi,
+                        forceultrametric=TRUE)
+test <- fix.poly(tree_solved, type='resolve')
+test2 <- fix.poly(species_tree_ncbi, type='resolve')
+musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
+init <- starting.point.musse(resolved_tree_ncbi, k = 3)
+result_musse <- find.mle(musse, x.init = init)
+round(result_musse$par, 9)
