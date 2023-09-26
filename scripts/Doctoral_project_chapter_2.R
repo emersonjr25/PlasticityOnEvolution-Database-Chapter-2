@@ -270,25 +270,33 @@ profiles.plot(net_div,
 
 ############## try new plots #############
 
-library(devtools)
-library(ggplot2)
-library(RevGadgets)
+ggplot(mcmc_result, aes(i, p)) +
+  geom_line() + 
+  xlab('Time') + ylab('Ln(log)') +
+  ggtitle('Verosimilhance along time') +
+  theme_bw() +
+  theme(plot.title = 
+          element_text(size = 16, 
+                       face = 2, 
+                       hjust = 0.5), 
+        axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14))
 
 lambda %>% 
-  pivot_longer(cols = starts_with('lambda') )
+  pivot_longer(cols = starts_with('lambda')) %>%
+  ggplot(aes(value, color=name, fill = name)) + 
+  geom_density()
 
-plotMuSSE(mcmc_result) +
-  theme(legend.position = c(0.875,0.915),
-        legend.key.size = unit(0.4, 'cm'), #change legend key size
-        legend.title = element_text(size=8), #change legend title font size
-        legend.text = element_text(size=6))
+mcmc_result %>% 
+  pivot_longer(starts_with('lambda'),
+               names_to="Speciation",
+               values_to = 'LambdaPosterior') %>%
+  pivot_longer(starts_with('mu'),
+               names_to="Extinction",
+               values_to = 'ExtinctionPosterior')
 
-url <- "https://revbayes.github.io/tutorials/intro/data/primates_BiSSE_activity_period.log"
-dest_path <- "primates_BiSSE_activity_period.log"
-download.file(url, dest_path)
-bisse_file <- dest_path
-pdata <- processSSE(bisse_file)
-plotMuSSE(pdata)
+plotBranchbyTrait(resolved_tree_ncbi, hedgesg)
+
 ################################################################################
 ##### MUSSE TO MORE FREQUENT TRAIT #######################
 ################################################################################
