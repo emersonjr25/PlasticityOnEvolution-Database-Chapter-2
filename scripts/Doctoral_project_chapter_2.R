@@ -172,46 +172,75 @@ names(hedgesg)[grepl('lesueurii', names(hedgesg))][2] <- species_wrong2[species_
 ###################### musse ##########################
 resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
 
-# complete musse model #
-musse <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
+# 1 musse full #
+musse_full <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
 init <- starting.point.musse(resolved_tree_ncbi, k = 3)
-result_musse <- find.mle(musse, x.init = init)
-round(result_musse$par, 9)
+result_musse_full <- find.mle(musse_full, x.init = init)
+round(result_musse_full$par, 9)
 
-# musse with great transition steps #
-musse_restrictions <- constrain(musse, q13 ~ 0, q31 ~ 0)
-result_musse_restrictions <- find.mle(musse_restrictions, x.init = init[argnames(musse_restrictions)])
-round(result_musse_restrictions$par, 9)
+# 2 musse ordered #
+musse_ordered <- constrain(musse_full, q13 ~ 0, q31 ~ 0)
+result_musse_ordered <- find.mle(musse_ordered, x.init = init[argnames(musse_ordered)])
+round(result_musse_ordered$par, 9)
 
-# musse null #
-musse_null <- constrain(musse, lambda2 ~ lambda1, lambda3 ~ lambda1,
-                        mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q31 ~ 0, q23 ~ 0)
+# 3 musse null #
+musse_null <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
+                        mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
+                        q23 ~ q12, q31 ~ 0, q32 ~ q12)
 result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
 round(result_musse_null$par, 9)
 
+# 4 musse lambda #
+musse_lambda <- constrain(musse_full, mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
+                        q23 ~ q12, q31 ~ 0, q32 ~ q12)
+result_lambda <- find.mle(musse_lambda, x.init = init[argnames(musse_lambda)])
+round(result_lambda$par, 9)
+
+# 5 musse mu #
+musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
+          q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
+result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
+round(result_mu$par, 9)
+
+# 6 musse lamba-mu #
+musse_lambda_mu <- constrain(musse_full, q13 ~ 0, q21 ~ q12, q23 ~ q12, 
+                           q31 ~ 0, q32 ~ q12)
+result_lambda_mu <- find.mle(musse_lambda_mu, init[argnames(musse_lambda_mu)])
+round(result_lambda_mu$par, 9)
+
+# 7 musse transitions #
+musse_transitions <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
+                           mu2 ~ mu1, mu3 ~ mu1)
+musse_transitions <- find.mle(musse_transitions, init[argnames(musse_transitions)])
+round(musse_transitions$par, 9)
+
 # anova to see best musse model #
-anova_result <- anova(result_musse_null, 
-      all.different=result_musse,
-      all.restriction=result_musse_restrictions)
+anova_result <- anova(result_musse_null,
+                      all.different = result_musse_full,
+                      free.ordered = result_musse_ordered,
+                      free.lambda = result_lambda,
+                      free.mu = result_mu,
+                      free.lambda.mu = result_lambda_mu,
+                      free.q = musse_transitions)
 
 # look results to best model #
 aicw(setNames(anova_result$AIC, row.names(anova_result)))
-round(coef(result_musse_restrictions), 9)
-logLik(result_musse_restrictions)
-AIC(result_musse_restrictions)
+round(coef(result_musse_ordered), 9)
+logLik(result_musse_ordered)
+AIC(result_musse_ordered)
 plotTree(resolved_tree_ncbi)
 
 #### Bayesian MCMC to best model ####
 prior <- make.prior.exponential(1/2)
 
-preliminar <- mcmc(musse_restrictions, 
-                   result_musse_restrictions$par, 
+preliminar <- mcmc(musse_ordered, 
+                   result_musse_ordered$par, 
                    nsteps=100, prior=prior,
                    w=1, print.every = 0)
 
 w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
 
-mcmc_result <- mcmc(musse_restrictions, 
+mcmc_result <- mcmc(musse_ordered, 
                     init[colnames(w)], 
                     nsteps=500,prior=prior, 
                     w=w, print.every=10)
