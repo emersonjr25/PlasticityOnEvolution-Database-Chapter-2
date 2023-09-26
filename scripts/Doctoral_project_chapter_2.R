@@ -211,8 +211,8 @@ round(result_lambda_mu$par, 9)
 # 7 musse transitions #
 musse_transitions <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
                            mu2 ~ mu1, mu3 ~ mu1)
-musse_transitions <- find.mle(musse_transitions, init[argnames(musse_transitions)])
-round(musse_transitions$par, 9)
+result_transitions <- find.mle(musse_transitions, init[argnames(musse_transitions)])
+round(result_transitions$par, 9)
 
 # anova to see best musse model #
 anova_result <- anova(result_musse_null,
@@ -221,7 +221,7 @@ anova_result <- anova(result_musse_null,
                       free.lambda = result_lambda,
                       free.mu = result_mu,
                       free.lambda.mu = result_lambda_mu,
-                      free.q = musse_transitions)
+                      free.q = result_transitions)
 
 # look results to best model #
 aicw(setNames(anova_result$AIC, row.names(anova_result)))
@@ -242,14 +242,19 @@ w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
 
 mcmc_result <- mcmc(musse_ordered, 
                     init[colnames(w)], 
-                    nsteps=500,prior=prior, 
+                    nsteps=1000,prior=prior, 
                     w=w, print.every=10)
-
-plot(mcmc_result$i, mcmc_result$p, type='l', 
-     xlab='generation', ylab='log(L)')
-mcmc_result <- mcmc_result[100:nrow(mcmc_result), ]
+#saveRDS(mcmc_result, file="mcmc.rds")
+#readRDS(mcmc.rds)
+mcmc_max <- nrow(mcmc_result)
+mcmc_out_burn_in <- nrow(mcmc_result) * 0.2
+mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
+plot(mcmc_result$i, mcmc_result$p, type="l", 
+     xlab="generation", ylab='log(L)')
 colMeans(mcmc_result)[2:ncol(mcmc_result)]
 colors <- setNames(c('yellow', 'green', 'red'), 1:3)
+lambda <- mcmc_result[, grep('lambda', colnames(mcmc_result))]
+
 profiles.plot(mcmc_result[, grep('lambda', colnames(mcmc_result))],
               col.line=colors, las=1, legend.pos = 'topright')
 profiles.plot(mcmc_result[, grep('mu', colnames(mcmc_result))],
@@ -263,6 +268,27 @@ profiles.plot(net_div,
               legend.pos='topleft', col.line=setNames(colors, colnames(net_div)),
               lty=1)
 
+############## try new plots #############
+
+library(devtools)
+library(ggplot2)
+library(RevGadgets)
+
+lambda %>% 
+  pivot_longer(cols = starts_with('lambda') )
+
+plotMuSSE(mcmc_result) +
+  theme(legend.position = c(0.875,0.915),
+        legend.key.size = unit(0.4, 'cm'), #change legend key size
+        legend.title = element_text(size=8), #change legend title font size
+        legend.text = element_text(size=6))
+
+url <- "https://revbayes.github.io/tutorials/intro/data/primates_BiSSE_activity_period.log"
+dest_path <- "primates_BiSSE_activity_period.log"
+download.file(url, dest_path)
+bisse_file <- dest_path
+pdata <- processSSE(bisse_file)
+plotMuSSE(pdata)
 ################################################################################
 ##### MUSSE TO MORE FREQUENT TRAIT #######################
 ################################################################################
@@ -306,59 +332,91 @@ species_wrong <- names(hedgesg_mass)[!names(hedgesg_mass) %in% resolved_tree_ncb
 species_wrong2 <- resolved_tree_ncbi_mass$tip.label[!resolved_tree_ncbi_mass$tip.label %in% names(hedgesg_mass)]
 
 ### manual corrections in phylogeny ###
-#names(hedgesg_mass)[grepl('piscator', names(hedgesg_mass))] <- species_wrong2[species_wrong2 == "Fowlea piscator"]
-#names(hedgesg_mass)[grepl('lesueurii', names(hedgesg_mass))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
+names(hedgesg_mass)[grepl('piscator', names(hedgesg_mass))] <- species_wrong2[species_wrong2 == "Fowlea piscator"]
+names(hedgesg_mass)[grepl('lesueurii', names(hedgesg_mass))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
 
 #### musse ####
 resolved_tree_ncbi_mass <- fix.poly(resolved_tree_ncbi_mass, type='resolve')
 
-#### musse complete ###
-musse <- make.musse(resolved_tree_ncbi_mass, states = hedgesg_mass, k = 3)
+# 1 musse full #
+musse_full <- make.musse(resolved_tree_ncbi_mass, states = hedgesg_mass, k = 3)
 init <- starting.point.musse(resolved_tree_ncbi_mass, k = 3)
-result_musse <- find.mle(musse, x.init = init)
+result_musse <- find.mle(musse_full, x.init = init)
 round(result_musse$par, 7)
 
-# musse with great transition steps #
-musse_restrictions <- constrain(musse, q13 ~ 0, q31 ~ 0)
-result_musse_restrictions <- find.mle(musse_restrictions, x.init = init[argnames(musse_restrictions)])
-round(result_musse_restrictions$par, 9)
+# 2 musse ordered #
+musse_ordered <- constrain(musse_full, q13 ~ 0, q31 ~ 0)
+result_musse_ordered <- find.mle(musse_ordered, x.init = init[argnames(musse_ordered)])
+round(result_musse_ordered$par, 9)
 
-# musse null #
-musse_null <- constrain(musse, lambda2 ~ lambda1, lambda3 ~ lambda1,
-                        mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q31 ~ 0, q23 ~ 0)
+# 3 musse null #
+musse_null <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
+                        mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
+                        q23 ~ q12, q31 ~ 0, q32 ~ q12)
 result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
 round(result_musse_null$par, 9)
 
+# 4 musse lambda #
+musse_lambda <- constrain(musse_full, mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
+                          q23 ~ q12, q31 ~ 0, q32 ~ q12)
+result_lambda <- find.mle(musse_lambda, x.init = init[argnames(musse_lambda)])
+round(result_lambda$par, 9)
+
+# 5 musse mu #
+musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
+                      q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
+result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
+round(result_mu$par, 9)
+
+# 6 musse lamba-mu #
+musse_lambda_mu <- constrain(musse_full, q13 ~ 0, q21 ~ q12, q23 ~ q12, 
+                             q31 ~ 0, q32 ~ q12)
+result_lambda_mu <- find.mle(musse_lambda_mu, init[argnames(musse_lambda_mu)])
+round(result_lambda_mu$par, 9)
+
+# 7 musse transitions #
+musse_transitions <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
+                               mu2 ~ mu1, mu3 ~ mu1)
+result_transitions <- find.mle(musse_transitions, init[argnames(musse_transitions)])
+round(result_transitions$par, 9)
+
 # anova to see best musse model #
-anova_result <- anova(result_musse_null, 
-                      all.different=result_musse,
-                      all.restriction=result_musse_restrictions)
+anova_result <- anova(result_musse_null,
+                      all.different = result_musse_full,
+                      free.ordered = result_musse_ordered,
+                      free.lambda = result_lambda,
+                      free.mu = result_mu,
+                      free.lambda.mu = result_lambda_mu,
+                      free.q = result_transitions)
 
 # look results to best model #
 aicw(setNames(anova_result$AIC, row.names(anova_result)))
-round(coef(result_musse_restrictions), 9)
-logLik(result_musse_restrictions)
-AIC(result_musse_restrictions)
+round(coef(result_musse_ordered), 9)
+logLik(result_musse_ordered)
+AIC(result_musse_ordered)
 plotTree(resolved_tree_ncbi)
 
 #### Bayesian MCMC to best model ####
 prior <- make.prior.exponential(1/2)
 
-preliminar <- mcmc(musse_restrictions, 
-                   result_musse_restrictions$par, 
+preliminar <- mcmc(musse_ordered, 
+                   result_musse_ordered$par, 
                    nsteps=100, prior=prior,
                    w=1, print.every = 0)
 
 w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
 
-mcmc_result <- mcmc(musse_restrictions, 
+mcmc_result <- mcmc(musse_ordered, 
                     init[colnames(w)], 
                     nsteps=500,prior=prior, 
                     w=w, print.every=10)
 
 plot(mcmc_result$i, mcmc_result$p, type='l', 
      xlab='generation', ylab='log(L)')
-mcmc_result <- mcmc_result[100:nrow(mcmc_result), ]
+
+mcmc_max <- nrow(mcmc_result)
+mcmc_out_burn_in <- nrow(mcmc_result) * 0.2
+mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
 colMeans(mcmc_result)[2:ncol(mcmc_result)]
 colors <- setNames(c('yellow', 'green', 'red'), 1:3)
 profiles.plot(mcmc_result[, grep('lambda', colnames(mcmc_result))],
@@ -373,7 +431,6 @@ profiles.plot(net_div,
               ylab="Probability density",
               legend.pos='topleft', col.line=setNames(colors, colnames(net_div)),
               lty=1)
-
 
 ##################################################################
 ########### OTT AND NEW WAY TO CORRECT PHYLOGENY #################
