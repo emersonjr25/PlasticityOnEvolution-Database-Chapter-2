@@ -228,9 +228,8 @@ aicw(setNames(anova_result$AIC, row.names(anova_result)))
 round(coef(result_musse_ordered), 9)
 logLik(result_musse_ordered)
 AIC(result_musse_ordered)
-plotTree(resolved_tree_ncbi)
 
-#### Bayesian MCMC to best model ####
+#### Bayesian MCMC to find posterior density ####
 prior <- make.prior.exponential(1/2)
 
 preliminar <- mcmc(musse_ordered, 
@@ -245,40 +244,23 @@ mcmc_result <- mcmc(musse_ordered,
                     nsteps=1000,prior=prior, 
                     w=w, print.every=10)
 #saveRDS(mcmc_result, file="mcmc.rds")
+
+# remove burn-in #
 mcmc_result <- readRDS("mcmc.rds")
 mcmc_max <- nrow(mcmc_result)
-mcmc_out_burn_in <- nrow(mcmc_result) * 0.2
+mcmc_out_burn_in <- round(nrow(mcmc_result) * 0.2) + 1
 mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
+
+# mean result per variable #
 colMeans(mcmc_result)[2:ncol(mcmc_result)]
 
+### organizing data to graphs with pivot ###
 
-ggplot(mcmc_result, aes(i, p)) +
-  geom_line() + 
-  xlab('Time') + ylab('Log(L)') +
-  theme_bw() +
-  theme(axis.title.x = element_text(size = 14), 
-        axis.title.y = element_text(size = 14))
-
-ggplot(mcmc_result, aes(x=i)) +
-  geom_line(aes(y=lambda1), color='blue') +
-  geom_line(aes(y=lambda2), color='black') +
-  geom_line(aes(y=lambda3), color='red') +
-  xlab('Time') + ylab('Lambda') + 
-  theme(axis.title.x = element_text(size = 14), 
-        axis.title.y = element_text(size = 14))
-
+# transitions #
 transitions <- mcmc_result %>%
   pivot_longer(q12:q32)
 
-ggplot(transitions, aes(value, fill = name)) +
-  geom_density(alpha=0.7) +
-  theme_bw() +
-  scale_fill_hue(name="States") +
-  theme(legend.position = c(0.8, 0.75),
-        axis.title.x = element_text(size = 14), 
-        axis.title.y = element_text(size = 14)) +
-  xlab("Transition") + ylab('Posterior Density') 
-
+# speciation, extinction, and diversification #
 mcmc_result_pivoted <- mcmc_result %>% 
   pivot_longer(starts_with('lambda'),
                names_to="Speciation",
@@ -297,6 +279,36 @@ mcmc_result_pivoted <- mcmc_result_pivoted |>
          DiversificationPosterior = LambdaPosterior - ExtinctionPosterior,
          Diversification = str_replace(Diversification, 'lambda', 'Diversif'))
 
+### plots ###
+
+# temporal series #
+ggplot(mcmc_result, aes(i, p)) +
+  geom_line() + 
+  xlab('Time') + ylab('Log(L)') +
+  theme_bw() +
+  theme(axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14))
+
+ggplot(mcmc_result, aes(x=i)) +
+  geom_line(aes(y=lambda1), color='blue') +
+  geom_line(aes(y=lambda2), color='black') +
+  geom_line(aes(y=lambda3), color='red') +
+  xlab('Time') + ylab('Lambda') + 
+  theme_bw() +
+  theme(axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14))
+
+# transitions #
+ggplot(transitions, aes(value, fill = name)) +
+  geom_density(alpha=0.7) +
+  theme_bw() +
+  scale_fill_hue(name="States") +
+  theme(legend.position = c(0.8, 0.75),
+        axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14)) +
+  xlab("Transition") + ylab('Posterior Density') 
+
+# speciation #
 mcmc_result_pivoted %>% 
   ggplot(aes(LambdaPosterior, fill = Speciation)) + 
   geom_density(alpha=0.7) +
@@ -310,6 +322,7 @@ mcmc_result_pivoted %>%
         axis.title.y = element_text(size = 14)) +
   xlab("Speciation") + ylab('Posterior Density') 
 
+# extinction #
 mcmc_result_pivoted %>% 
   ggplot(aes(ExtinctionPosterior, fill = Extinction)) + 
   geom_density(alpha=0.7) +
@@ -323,6 +336,7 @@ mcmc_result_pivoted %>%
         axis.title.y = element_text(size = 14)) +
   xlab("Extinction") + ylab('Posterior Density') 
 
+# diversification #
 mcmc_result_pivoted %>% 
   ggplot(aes(DiversificationPosterior, fill = Diversification)) + 
   geom_density(alpha=0.7) +
@@ -336,11 +350,13 @@ mcmc_result_pivoted %>%
         axis.title.y = element_text(size = 14)) +
   xlab("Diversification") + ylab('Posterior Density') 
 
+# tree per states #
 color.palette = colorRampPalette(c("blue", "#ffcd74", "#ff7251"))
 plotBranchbyTrait(resolved_tree_ncbi, 
                   hedgesg, mode=c("edges"),
                   palette=color.palette,
                   legend=FALSE)
+
 ################################################################################
 ##### MUSSE TO MORE FREQUENT TRAIT #######################
 ################################################################################
