@@ -245,58 +245,102 @@ mcmc_result <- mcmc(musse_ordered,
                     nsteps=1000,prior=prior, 
                     w=w, print.every=10)
 #saveRDS(mcmc_result, file="mcmc.rds")
-#readRDS(mcmc.rds)
+mcmc_result <- readRDS("mcmc.rds")
 mcmc_max <- nrow(mcmc_result)
 mcmc_out_burn_in <- nrow(mcmc_result) * 0.2
 mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
-plot(mcmc_result$i, mcmc_result$p, type="l", 
-     xlab="generation", ylab='log(L)')
 colMeans(mcmc_result)[2:ncol(mcmc_result)]
-colors <- setNames(c('yellow', 'green', 'red'), 1:3)
-lambda <- mcmc_result[, grep('lambda', colnames(mcmc_result))]
 
-profiles.plot(mcmc_result[, grep('lambda', colnames(mcmc_result))],
-              col.line=colors, las=1, legend.pos = 'topright')
-profiles.plot(mcmc_result[, grep('mu', colnames(mcmc_result))],
-              col.line=colors, las=1, legend.pos = 'topright')
-net_div <- mcmc_result[, grep('lambda', colnames(mcmc_result))] -
-  mcmc_result[, grep('mu', colnames(mcmc_result))]
-colnames(net_div) <- paste('lambda-mu(', 1:3, ")", sep="")
-profiles.plot(net_div,
-              xlab="Net diversification rate",
-              ylab="Probability density",
-              legend.pos='topleft', col.line=setNames(colors, colnames(net_div)),
-              lty=1)
-
-############## try new plots #############
 
 ggplot(mcmc_result, aes(i, p)) +
   geom_line() + 
-  xlab('Time') + ylab('Ln(log)') +
-  ggtitle('Verosimilhance along time') +
+  xlab('Time') + ylab('Log(L)') +
   theme_bw() +
-  theme(plot.title = 
-          element_text(size = 16, 
-                       face = 2, 
-                       hjust = 0.5), 
-        axis.title.x = element_text(size = 14), 
+  theme(axis.title.x = element_text(size = 14), 
         axis.title.y = element_text(size = 14))
 
-lambda %>% 
-  pivot_longer(cols = starts_with('lambda')) %>%
-  ggplot(aes(value, color=name, fill = name)) + 
-  geom_density()
+ggplot(mcmc_result, aes(x=i)) +
+  geom_line(aes(y=lambda1), color='blue') +
+  geom_line(aes(y=lambda2), color='black') +
+  geom_line(aes(y=lambda3), color='red') +
+  xlab('Time') + ylab('Lambda') + 
+  theme(axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14))
 
-mcmc_result %>% 
+transitions <- mcmc_result %>%
+  pivot_longer(q12:q32)
+
+ggplot(transitions, aes(value, fill = name)) +
+  geom_density(alpha=0.7) +
+  theme_bw() +
+  scale_fill_hue(name="States") +
+  theme(legend.position = c(0.8, 0.75),
+        axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14)) +
+  xlab("Transition") + ylab('Posterior Density') 
+
+mcmc_result_pivoted <- mcmc_result %>% 
   pivot_longer(starts_with('lambda'),
                names_to="Speciation",
-               values_to = 'LambdaPosterior') %>%
+               values_to = 'LambdaPosterior')
+
+temporary <- mcmc_result %>% 
   pivot_longer(starts_with('mu'),
                names_to="Extinction",
                values_to = 'ExtinctionPosterior')
 
-plotBranchbyTrait(resolved_tree_ncbi, hedgesg)
+mcmc_result_pivoted$Extinction <- temporary$Extinction
+mcmc_result_pivoted$ExtinctionPosterior <- temporary$ExtinctionPosterior
 
+mcmc_result_pivoted <- mcmc_result_pivoted |>
+  mutate(Diversification = Speciation,
+         DiversificationPosterior = LambdaPosterior - ExtinctionPosterior,
+         Diversification = str_replace(Diversification, 'lambda', 'Diversif'))
+
+mcmc_result_pivoted %>% 
+  ggplot(aes(LambdaPosterior, fill = Speciation)) + 
+  geom_density(alpha=0.7) +
+  theme_bw() +
+  scale_fill_hue(labels = c("Low Plasticity (1)", 
+                            "Medium Plasticity (2)", 
+                            "High Plasticity (3)"),
+                 name="States") +
+  theme(legend.position = c(0.8, 0.8),
+        axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14)) +
+  xlab("Speciation") + ylab('Posterior Density') 
+
+mcmc_result_pivoted %>% 
+  ggplot(aes(ExtinctionPosterior, fill = Extinction)) + 
+  geom_density(alpha=0.7) +
+  theme_bw() +
+  scale_fill_hue(labels = c("Low Plasticity (1)", 
+                            "Medium Plasticity (2)", 
+                            "High Plasticity (3)"),
+                 name="States") +
+  theme(legend.position = c(0.8, 0.8),
+        axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14)) +
+  xlab("Extinction") + ylab('Posterior Density') 
+
+mcmc_result_pivoted %>% 
+  ggplot(aes(DiversificationPosterior, fill = Diversification)) + 
+  geom_density(alpha=0.7) +
+  theme_bw() +
+  scale_fill_hue(labels = c("Low Plasticity (1)", 
+                            "Medium Plasticity (2)", 
+                            "High Plasticity (3)"),
+                 name="States") +
+  theme(legend.position = c(0.8, 0.8),
+        axis.title.x = element_text(size = 14), 
+        axis.title.y = element_text(size = 14)) +
+  xlab("Diversification") + ylab('Posterior Density') 
+
+color.palette = colorRampPalette(c("blue", "#ffcd74", "#ff7251"))
+plotBranchbyTrait(resolved_tree_ncbi, 
+                  hedgesg, mode=c("edges"),
+                  palette=color.palette,
+                  legend=FALSE)
 ################################################################################
 ##### MUSSE TO MORE FREQUENT TRAIT #######################
 ################################################################################
