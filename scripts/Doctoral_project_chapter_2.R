@@ -128,15 +128,38 @@ result_all_species <- result %>%
 ### STATES ###
 hedgesg <- abs(result_all_species$hedgesg)
 
+# states first way #
+# states <- function(x){
+#   if(x <= 0.2){
+#     x <- 1
+#   } else if (x > 0.2 & x <= 0.5){
+#     x <- 2
+#   } else if(x > 0.5){
+#     x <- 3
+#   }
+# }
+
+# states second way #
 states <- function(x){
-  if(x <= 0.2){
+  if(x <= 0.35){
     x <- 1
-  } else if (x > 0.2 & x <= 0.5){
+  } else if (x > 0.35 & x <= 0.65){
     x <- 2
-  } else if(x > 0.5){
+  } else if(x > 0.65){
     x <- 3
-  } 
+  }
 }
+
+# states third way #
+# states <- function(x){
+#   if(x < 0.5){
+#     x <- 1
+#   } else if (x >= 0.5 & x < 0.8){
+#     x <- 2
+#   } else if(x >= 0.8){
+#     x <- 3
+#   }
+# }
 
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
@@ -152,14 +175,13 @@ ggplot(table_histogram, aes(x = hedgesg)) +
 #### phylogeny construction - NCBI ####
 species_info_ncbi <- classification(species, db='ncbi')
 species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
-species_tree_ncbi <- species_tree_ncbi$phylo
+resolved_tree_ncbi <- species_tree_ncbi$phylo
 
 ### MUSSE CALCULATION NCBI ###
-resolved_tree_ncbi <- multi2di(species_tree_ncbi)
-species_wrong <- names(hedgesg)[!names(hedgesg) %in% resolved_tree_ncbi$tip.label]
-species_wrong2 <- resolved_tree_ncbi$tip.label[!resolved_tree_ncbi$tip.label %in% names(hedgesg)]
 
 ### manual corrections in phylogeny ###
+species_wrong <- names(hedgesg)[!names(hedgesg) %in% resolved_tree_ncbi$tip.label]
+species_wrong2 <- resolved_tree_ncbi$tip.label[!resolved_tree_ncbi$tip.label %in% names(hedgesg)]
 names(hedgesg)[grepl('ruf', names(hedgesg))] <- species_wrong2[species_wrong2 == "Lycodon rufozonatus"]
 resolved_tree_ncbi$tip.label[grepl('Elaphe tae', resolved_tree_ncbi$tip.label)] <- species_wrong[species_wrong == "Elaphe taeniura"]
 names(hedgesg)[grepl('maccoyi', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Anepischetosia maccoyi.x"]
@@ -170,6 +192,7 @@ names(hedgesg)[grepl('lesueurii', names(hedgesg))][1] <- species_wrong2[species_
 names(hedgesg)[grepl('lesueurii', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Intellagama lesueurii"]
 
 ###################### musse ##########################
+resolved_tree_ncbi <- multi2di(resolved_tree_ncbi)
 resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
 
 # 1 musse full #
@@ -202,26 +225,12 @@ musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
 result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
 round(result_mu$par, 9)
 
-# 6 musse lamba-mu #
-musse_lambda_mu <- constrain(musse_full, q13 ~ 0, q21 ~ q12, q23 ~ q12, 
-                           q31 ~ 0, q32 ~ q12)
-result_lambda_mu <- find.mle(musse_lambda_mu, init[argnames(musse_lambda_mu)])
-round(result_lambda_mu$par, 9)
-
-# 7 musse transitions #
-musse_transitions <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
-                           mu2 ~ mu1, mu3 ~ mu1)
-result_transitions <- find.mle(musse_transitions, init[argnames(musse_transitions)])
-round(result_transitions$par, 9)
-
 # anova to see best musse model #
 anova_result <- anova(result_musse_null,
                       all.different = result_musse_full,
                       free.ordered = result_musse_ordered,
                       free.lambda = result_lambda,
-                      free.mu = result_mu,
-                      free.lambda.mu = result_lambda_mu,
-                      free.q = result_transitions)
+                      free.mu = result_mu)
 
 # look results to best model #
 aicw(setNames(anova_result$AIC, row.names(anova_result)))
@@ -282,7 +291,7 @@ mcmc_result_pivoted <- mcmc_result_pivoted |>
 ### plots ###
 
 # temporal series #
-save_result <- TRUE
+save_result <- FALSE
 markov <- ggplot(mcmc_result, aes(i, p)) +
   geom_line() + 
   xlab('Time') + ylab('Log(L)') +
@@ -573,12 +582,20 @@ profiles.plot(net_div,
               lty=1)
 
 ##################################################################
-########### OTT AND NEW WAY TO CORRECT PHYLOGENY #################
-species_info_ott <- tnrs_match_names(species)
-species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott$ott_id)
-species_wrong <- names(hedgesg)[!names(hedgesg) %in% species_tree_ncbi$tip.label]
-species_wrong2 <- species_tree_ncbi$tip.label[!species_tree_ncbi$tip.label %in% names(hedgesg)]
-species_tree_ncbi$tip.label[grepl('Elaphe tae', species_tree_ncbi$tip.label)] <- species_wrong[species_wrong == "Elaphe taeniura"]
+resolved_tree_ncbi <- species_tree_ncbi
+species_wrong <- names(hedgesg)[!names(hedgesg) %in% resolved_tree_ncbi$tip.label]
+species_wrong2 <- resolved_tree_ncbi$tip.label[!resolved_tree_ncbi$tip.label %in% names(hedgesg)]
+
+### manual corrections in phylogeny ###
+names(hedgesg)[grepl('ruf', names(hedgesg))] <- species_wrong2[species_wrong2 == "Lycodon rufozonatus"]
+resolved_tree_ncbi$tip.label[grepl('Elaphe tae', resolved_tree_ncbi$tip.label)] <- species_wrong[species_wrong == "Elaphe taeniura"]
+names(hedgesg)[grepl('maccoyi', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Anepischetosia maccoyi.x"]
+names(hedgesg)[grepl('maccoyi', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Anepischetosia maccoyi.y"]
+names(hedgesg)[grepl('sinensis', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Mauremys sinensis"]
+names(hedgesg)[grepl('piscator', names(hedgesg))] <- species_wrong2[species_wrong2 == "Fowlea piscator"]
+names(hedgesg)[grepl('lesueurii', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
+names(hedgesg)[grepl('lesueurii', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Intellagama lesueurii"]
+
 info_fix_poly <- build_info(species, species_tree_ncbi, db="ncbi")
 input_fix_poly <- info2input(info_fix_poly, species_tree_ncbi)
 tree_solved <- rand_tip(input = input_fix_poly, tree = species_tree_ncbi,
