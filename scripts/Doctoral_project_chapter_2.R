@@ -180,33 +180,14 @@ resolved_tree_ncbi <- species_tree_ncbi$phylo
 ### MUSSE CALCULATION NCBI ###
 
 ### manual corrections in phylogeny ###
-species_wrong <- names(hedgesg)[!names(hedgesg) %in% resolved_tree_ncbi$tip.label]
-species_wrong2 <- resolved_tree_ncbi$tip.label[!resolved_tree_ncbi$tip.label %in% names(hedgesg)]
-names(hedgesg)[grepl('ruf', names(hedgesg))] <- species_wrong2[species_wrong2 == "Lycodon rufozonatus"]
-resolved_tree_ncbi$tip.label[grepl('Elaphe tae', resolved_tree_ncbi$tip.label)] <- species_wrong[species_wrong == "Elaphe taeniura"]
-names(hedgesg)[grepl('maccoyi', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Anepischetosia maccoyi.x"]
-names(hedgesg)[grepl('maccoyi', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Anepischetosia maccoyi.y"]
-names(hedgesg)[grepl('sinensis', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Mauremys sinensis"]
-names(hedgesg)[grepl('piscator', names(hedgesg))] <- species_wrong2[species_wrong2 == "Fowlea piscator"]
-names(hedgesg)[grepl('lesueurii', names(hedgesg))][1] <- species_wrong2[species_wrong2 == "Amalosia lesueurii"]
-names(hedgesg)[grepl('lesueurii', names(hedgesg))][2] <- species_wrong2[species_wrong2 == "Intellagama lesueurii"]
-
-###################### musse ##########################
-
-### way 1 ###
-resolved_tree_ncbi <- multi2di(resolved_tree_ncbi)
-resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
-
-### way 2 ###
-resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
-
-### way 3 ###
 info_fix_poly <- build_info(species, resolved_tree_ncbi, db="ncbi")
 input_fix_poly <- info2input(info_fix_poly, resolved_tree_ncbi)
 resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = resolved_tree_ncbi,
-                        forceultrametric=TRUE)
+                               forceultrametric=TRUE)
+resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
 resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
 
+### musse ###
 # 1 musse full #
 musse_full <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
 init <- starting.point.musse(resolved_tree_ncbi, k = 3)
@@ -262,7 +243,7 @@ w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
 
 mcmc_result <- mcmc(musse_ordered, 
                     init[colnames(w)], 
-                    nsteps=3000,prior=prior, 
+                    nsteps=1500,prior=prior, 
                     w=w, print.every=10)
 #saveRDS(mcmc_result, file="mcmc.rds")
 
