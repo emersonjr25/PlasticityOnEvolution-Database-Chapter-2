@@ -19,6 +19,7 @@ library(phytools)
 library(ggplot2)
 library(geiger)
 library(randtip)
+library(stableGR)
 
 ### READING DATA ###
 
@@ -185,6 +186,8 @@ input_fix_poly <- info2input(info_fix_poly, resolved_tree_ncbi)
 resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = resolved_tree_ncbi,
                                forceultrametric=TRUE)
 resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
+#save.image('first_step.RDS')
+#load('first_step.RDS')
 resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
 
 ### musse ###
@@ -225,11 +228,19 @@ anova_result <- anova(result_musse_null,
                       free.lambda = result_lambda,
                       free.mu = result_mu)
 
+#save.image("my_env.RDS")
+#load("my_env2.RDS")
+
 # look results to best model #
 aicw(setNames(anova_result$AIC, row.names(anova_result)))
 round(coef(result_musse_ordered), 9)
 logLik(result_musse_ordered)
 AIC(result_musse_ordered)
+round(result_musse_ordered$par, 9)
+
+prop_lambda <- (result_musse_ordered$par[1:3]  / max(result_musse_ordered$par[1:3])) * 100
+prop_mu <- (result_musse_ordered$par[4:6]  / max(result_musse_ordered$par[4:6])) * 100
+prop_transi <- (result_musse_ordered$par[7:length(result_musse_ordered$par)]  / max(result_musse_ordered$par[7:length(result_musse_ordered$par)])) * 100
 
 #### Bayesian MCMC to find posterior density ####
 prior <- make.prior.exponential(1/2)
@@ -248,16 +259,36 @@ mcmc_result <- mcmc(musse_ordered,
 #saveRDS(mcmc_result, file="mcmc.rds")
 
 # remove burn-in #
-#mcmc_result <- readRDS("mcmc.rds")
+mcmc_result <- readRDS("mcmc.rds")
 mcmc_max <- nrow(mcmc_result)
 mcmc_out_burn_in <- round(nrow(mcmc_result) * 0.2) + 1
 mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
 
+hist(mcmc_result$lambda2)
+ttestBF(mcmc_result$mu1 - mcmc_result$mu3)
+ttestBF(a)
+correlationBF(mcmc_result$mu1, mcmc_result$mu2)
+dbinom(-1:1, length(mcmc_result$mu1), mean(mcmc_result$mu1))
+boxplot(mcmc_result_pivoted$LambdaPosterior ~ mcmc_result_pivoted$Speciation)
+lmBF(LambdaPosterior ~ Speciation, data=mcmc_result_pivoted)
+binom_first <- dbinom(mcmc_result$lambda1, 
+       length(mcmc_result$lambda1),
+       mean(mcmc_result$lambda1))
+
+binom_second <- dbinom(mcmc_result$lambda2, 
+                       length(mcmc_result$lambda2),
+                       mean(mcmc_result$lambda2))
+binom_first / binom_second
+dbinom(46:54, 100, 0.5)
 # mean result per variable #
 colMeans(mcmc_result)[2:ncol(mcmc_result)]
 
+### effective size sample ###
+n.eff(as.matrix(mcmc_result[, 2:(length(mcmc_result) - 1)]))
+n.eff(as.matrix(mcmc_result[, 2:4]))
+n.eff(as.matrix(mcmc_result[, 5:7]))
+n.eff(as.matrix(mcmc_result[, 8:11]))
 ### organizing data to graphs with pivot ###
-
 # transitions #
 transitions <- mcmc_result %>%
   pivot_longer(q12:q32)
@@ -282,9 +313,14 @@ mcmc_result_pivoted <- mcmc_result_pivoted |>
          Diversification = str_replace(Diversification, 'lambda', 'Diversif'))
 
 ### plots ###
+library(BayesFactor)
+library(OUwie)
+
+mcmc_result_pivoted$Speciation <- as.factor(mcmc_result_pivoted$Speciation)
+bf = lmBF(LambdaPosterior ~ Speciation, data=mcmc_result_pivoted)
 
 # temporal series #
-save_result <- FALSE
+save_result <- TRUE
 markov <- ggplot(mcmc_result, aes(i, p)) +
   geom_line() + 
   xlab('Time') + ylab('Log(L)') +
@@ -326,7 +362,7 @@ if(save_result == TRUE){
 }
 
 # transitions #
-ggplot(transitions, aes(value, fill = name)) +
+transitions <- ggplot(transitions, aes(value, fill = name)) +
   geom_density(alpha=0.7) +
   theme_bw() +
   scale_fill_hue(name="States") +
@@ -334,6 +370,18 @@ ggplot(transitions, aes(value, fill = name)) +
         axis.title.x = element_text(size = 14), 
         axis.title.y = element_text(size = 14)) +
   xlab("Transition") + ylab('Posterior Density') 
+
+if(save_result == TRUE){
+  tiff(filename = file.path(here('output'), paste0('transition', ".tif")),
+       #width = 1000,
+       width = 800, #without abundance and occupancy
+       height = 600,
+       #height = 400, #abundance and occupancy
+       units = "px",
+       res = 100)
+  print(transitions)
+  dev.off()
+}
 
 # speciation #
 speciation <- mcmc_result_pivoted %>% 
