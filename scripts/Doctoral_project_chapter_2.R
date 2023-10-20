@@ -25,6 +25,8 @@ library(stableGR)
 
 dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",") 
 
+set.seed(1)
+
 #### ENGINEER DATA AND MODELING ####
 
 subdata <- dados %>% 
@@ -117,6 +119,9 @@ result <- result %>%
   filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
   select(-sd_pool)
 
+papers_to_revise <- sample(unique(result$paper_no), 8)
+sort(papers_to_revise)
+
 ################################################################################
 ##### MUSSE TO ALL TRAITS - NCBI Database ################################
 ################################################################################
@@ -129,38 +134,48 @@ result_all_species <- result %>%
 ### STATES ###
 hedgesg <- abs(result_all_species$hedgesg)
 
-# states first way #
-# states <- function(x){
-#   if(x <= 0.2){
-#     x <- 1
-#   } else if (x > 0.2 & x <= 0.5){
-#     x <- 2
-#   } else if(x > 0.5){
-#     x <- 3
-#   }
-# }
+first_quartile <- round(summary(hedgesg)[2], 2)
+second_quartile <- round(summary(hedgesg)[3], 2)
 
-# states second way #
-states <- function(x){
-  if(x <= 0.35){
-    x <- 1
-  } else if (x > 0.35 & x <= 0.65){
-    x <- 2
-  } else if(x > 0.65){
-    x <- 3
+states_choice <- c("two") #can be one, two, or three
+if(states_choice == "one"){
+  # states first way - around 0.2, 0.5, 0.8 #
+  states <- function(x){
+    if(x <= 0.35){
+      x <- 1
+    } else if (x > 0.35 & x <= 0.65){
+      x <- 2
+    } else if(x > 0.65){
+      x <- 3
+    }
   }
+} else if(states_choice == "two"){
+  # states second way - using 3 quartiles #
+  states <- function(x){
+    if(x <= first_quartile){
+      x <- 1
+    } else if (x > first_quartile & x <= second_quartile){
+      x <- 2
+    } else if(x > second_quartile){
+      x <- 3
+    }
+  }
+} else if(states_choice == "three"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.2){
+      x <- 1
+    } else if (x > 0.2 & x <= 0.5){
+      x <- 2
+    } else if(x > 0.5){
+      x <- 3
+    }
+  }
+} else {
+  message("Error! Chose 'one', 'two', or 'three")
 }
-
-# states third way #
-# states <- function(x){
-#   if(x < 0.5){
-#     x <- 1
-#   } else if (x >= 0.5 & x < 0.8){
-#     x <- 2
-#   } else if(x >= 0.8){
-#     x <- 3
-#   }
-# }
 
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
@@ -229,7 +244,7 @@ anova_result <- anova(result_musse_null,
                       free.mu = result_mu)
 
 #save.image("my_env.RDS")
-#load("my_env2.RDS")
+#load("my_env.RDS")
 
 # look results to best model #
 aicw(setNames(anova_result$AIC, row.names(anova_result)))
@@ -288,6 +303,7 @@ n.eff(as.matrix(mcmc_result[, 2:(length(mcmc_result) - 1)]))
 n.eff(as.matrix(mcmc_result[, 2:4]))
 n.eff(as.matrix(mcmc_result[, 5:7]))
 n.eff(as.matrix(mcmc_result[, 8:11]))
+
 ### organizing data to graphs with pivot ###
 # transitions #
 transitions <- mcmc_result %>%
