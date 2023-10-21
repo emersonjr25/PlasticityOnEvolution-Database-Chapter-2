@@ -278,7 +278,6 @@ mcmc_result <- readRDS("mcmc.rds")
 mcmc_max <- nrow(mcmc_result)
 mcmc_out_burn_in <- round(nrow(mcmc_result) * 0.2) + 1
 mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
-
 hist(mcmc_result$lambda2)
 ttestBF(mcmc_result$mu1 - mcmc_result$mu3)
 ttestBF(a)
@@ -303,6 +302,34 @@ n.eff(as.matrix(mcmc_result[, 2:(length(mcmc_result) - 1)]))
 n.eff(as.matrix(mcmc_result[, 2:4]))
 n.eff(as.matrix(mcmc_result[, 5:7]))
 n.eff(as.matrix(mcmc_result[, 8:11]))
+
+library(OUwie)
+
+data(tworegime)
+
+#Plot the tree and the internal nodes to highlight the selective regimes:
+select.reg<-character(length(tree$node.label))
+select.reg[tree$node.label == 1] <- "black"
+select.reg[tree$node.label == 2] <- "red"
+plot(tree)
+nodelabels(pch=21, bg=select.reg)
+
+
+trait[1:5,]
+
+#Now fit an OU model that allows different sigma^2:
+OUwie(tree,trait,model=c("OUMV"))
+
+#Fit an OU model based on a clade of interest:
+OUwie(tree,trait,model=c("OUMV"), clade=c("t50", "t64"), algorithm="three.point")
+data(sim.ex)
+
+#or large trees, it may be useful to have ways to restart the search (due to
+#finite time per run on a computing cluster, for example). You can do this
+#by changing settings of OUwie runs. For example:
+
+run1 <- OUwie(tree,trait,model=c("OUMV"), root.station=FALSE, algorithm="invert", 
+              opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="500", "ftol_abs"=0.001))
 
 ### organizing data to graphs with pivot ###
 # transitions #
