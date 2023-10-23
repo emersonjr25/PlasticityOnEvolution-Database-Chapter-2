@@ -304,32 +304,23 @@ n.eff(as.matrix(mcmc_result[, 5:7]))
 n.eff(as.matrix(mcmc_result[, 8:11]))
 
 library(OUwie)
+library(corHMM)
 
-data(tworegime)
+X_to_BMS <- abs(result_all_species$hedgesg)
+X_to_BMS <- setNames(X_to_BMS, result_all_species$species_complete)
+Trait <- data.frame(Genus_species = names(hedgesg),
+           Reg = as.numeric(hedgesg),
+           X = as.numeric(X_to_BMS))
+tree_to_bms <- rayDISC(resolved_tree_ncbi, Trait[,c(1,2)], model="ER", node.states="marginal")
 
-#Plot the tree and the internal nodes to highlight the selective regimes:
-select.reg<-character(length(tree$node.label))
-select.reg[tree$node.label == 1] <- "black"
-select.reg[tree$node.label == 2] <- "red"
-plot(tree)
-nodelabels(pch=21, bg=select.reg)
+my_map <- make.simmap(tree_to_bms$phy,hedgesg, model="ER")
+plot(my_map)
 
-
-trait[1:5,]
-
-#Now fit an OU model that allows different sigma^2:
-OUwie(tree,trait,model=c("OUMV"))
-
-#Fit an OU model based on a clade of interest:
-OUwie(tree,trait,model=c("OUMV"), clade=c("t50", "t64"), algorithm="three.point")
-data(sim.ex)
-
-#or large trees, it may be useful to have ways to restart the search (due to
-#finite time per run on a computing cluster, for example). You can do this
-#by changing settings of OUwie runs. For example:
-
-run1 <- OUwie(tree,trait,model=c("OUMV"), root.station=FALSE, algorithm="invert", 
-              opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="500", "ftol_abs"=0.001))
+bms <- OUwie(tree_to_bms$phy,Trait,model=c("BMS"))
+OUM <- OUwie(tree_to_bms$phy,Trait,model=c("OUM"))
+aicc <- c(bms$AICc, OUM$AICc)
+names(aicc) <- c("BMS", "OUM")
+aic.w(aicc)
 
 ### organizing data to graphs with pivot ###
 # transitions #

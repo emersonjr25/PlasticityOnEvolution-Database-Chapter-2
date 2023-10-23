@@ -1,0 +1,31 @@
+[1mdiff --git a/scripts/Doctoral_project_chapter_2.R b/scripts/Doctoral_project_chapter_2.R[m
+[1mindex 299c64f..e4fbf67 100644[m
+[1m--- a/scripts/Doctoral_project_chapter_2.R[m
+[1m+++ b/scripts/Doctoral_project_chapter_2.R[m
+[36m@@ -331,6 +331,26 @@[m [mdata(sim.ex)[m
+ run1 <- OUwie(tree,trait,model=c("OUMV"), root.station=FALSE, algorithm="invert", [m
+               opts = list("algorithm"="NLOPT_LN_SBPLX", "maxeval"="500", "ftol_abs"=0.001))[m
+ [m
+[32m+[m
+[32m+[m[32manoleTree<-read.tree("Anolis.tre")[m
+[32m+[m[32manoleData<-read.csv("svl.csv")[m
+[32m+[m
+[32m+[m[32mcrownGiantSpecies<-c("equestris", "luteogularis", "smallwoodi", "noblei", "baracoae", "baleatus", "barahonae", "ricordii", "cuvieri", "garmani")[m
+[32m+[m
+[32m+[m[32misCrownGiant <- anoleData[,1] %in% crownGiantSpecies[m
+[32m+[m
+[32m+[m[32mecomorph <- sapply(isCrownGiant, function(x) if(x) "cg" else "other")[m
+[32m+[m[32mecomorph <- as.factor(ecomorph)[m
+[32m+[m[32mnames(ecomorph) <- anoleData[,1][m
+[32m+[m
+[32m+[m[32mecomorphTree <- make.simmap(anoleTree, ecomorph, model="ER")[m
+[32m+[m[32mplot(ecomorphTree)[m
+[32m+[m
+[32m+[m[32msvl<-anoleData[,2][m
+[32m+[m[32mnames(svl)<-anoleData[,1][m
+[32m+[m[32msvl_df<-data.frame(anoleData[,1], ecomorph, svl)[m
+[32m+[m[32mfitOUM<-OUwie(ecomorphTree, svl_df,model="OUM",simmap.tree=TRUE)[m
+[32m+[m
+ ### organizing data to graphs with pivot ###[m
+ # transitions #[m
+ transitions <- mcmc_result %>%[m
