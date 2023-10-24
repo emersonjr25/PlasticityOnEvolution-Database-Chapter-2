@@ -20,6 +20,8 @@ library(ggplot2)
 library(geiger)
 library(randtip)
 library(stableGR)
+library(OUwie)
+library(corHMM)
 
 ### READING DATA ###
 
@@ -202,8 +204,8 @@ resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = resolved_tree_ncbi
                                forceultrametric=TRUE)
 resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
 #save.image('first_step.RDS')
-#load('first_step.RDS')
-resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
+load('first_step.RDS')
+#resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
 
 ### musse ###
 # 1 musse full #
@@ -278,24 +280,50 @@ mcmc_result <- readRDS("mcmc.rds")
 mcmc_max <- nrow(mcmc_result)
 mcmc_out_burn_in <- round(nrow(mcmc_result) * 0.2) + 1
 mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
-hist(mcmc_result$lambda2)
-ttestBF(mcmc_result$mu1 - mcmc_result$mu3)
-ttestBF(a)
-correlationBF(mcmc_result$mu1, mcmc_result$mu2)
-dbinom(-1:1, length(mcmc_result$mu1), mean(mcmc_result$mu1))
-boxplot(mcmc_result_pivoted$LambdaPosterior ~ mcmc_result_pivoted$Speciation)
-lmBF(LambdaPosterior ~ Speciation, data=mcmc_result_pivoted)
-binom_first <- dbinom(mcmc_result$lambda1, 
-       length(mcmc_result$lambda1),
-       mean(mcmc_result$lambda1))
 
-binom_second <- dbinom(mcmc_result$lambda2, 
-                       length(mcmc_result$lambda2),
-                       mean(mcmc_result$lambda2))
-binom_first / binom_second
-dbinom(46:54, 100, 0.5)
+mean_posteriors <- colMeans(mcmc_result)[2:ncol(mcmc_result)]
 # mean result per variable #
-colMeans(mcmc_result)[2:ncol(mcmc_result)]
+bf_mean <- function(x, y) x / y
+bf_timestep <- function(x, y) mean(x / y)
+# lamb 1 x lamb 2 #
+bf_mean(mean_posteriors[1], mean_posteriors[2])
+bf_timestep(mcmc_result[, 2], mcmc_result[, 3])
+# lamb 1 x lamb 3 #
+bf_mean(mean_posteriors[1], mean_posteriors[3])
+bf_timestep(mcmc_result[, 2], mcmc_result[, 4])
+# lamb 2 x lamb 3 #
+bf_mean(mean_posteriors[2], mean_posteriors[3])
+bf_timestep(mcmc_result[, 3], mcmc_result[, 4])
+
+# mu 1 x mu 2 #
+bf_mean(mean_posteriors[4], mean_posteriors[5])
+bf_timestep(mcmc_result[, 5], mcmc_result[, 6])
+# mu 1 x mu 3 #
+bf_mean(mean_posteriors[4], mean_posteriors[6])
+bf_timestep(mcmc_result[, 5], mcmc_result[, 7])
+# mu 2 x mu 3 #
+bf_mean(mean_posteriors[5], mean_posteriors[6])
+bf_timestep(mcmc_result[, 6], mcmc_result[, 7])
+
+# transition #
+# q12 x q21 #
+bf_mean(mean_posteriors[7], mean_posteriors[8])
+bf_timestep(mcmc_result[, 8], mcmc_result[, 9])
+# q12 x q23 #
+bf_mean(mean_posteriors[7], mean_posteriors[9])
+bf_timestep(mcmc_result[, 8], mcmc_result[, 10])
+# q12 x q32 #
+bf_mean(mean_posteriors[7], mean_posteriors[10])
+bf_timestep(mcmc_result[, 8], mcmc_result[, 11])
+# q21 x q23 #
+bf_mean(mean_posteriors[8], mean_posteriors[9])
+bf_timestep(mcmc_result[, 9], mcmc_result[, 10])
+# q21 x q32 #
+bf_mean(mean_posteriors[8], mean_posteriors[10])
+bf_timestep(mcmc_result[, 9], mcmc_result[, 11])
+# q23 x q32 #
+bf_mean(mean_posteriors[9], mean_posteriors[10])
+bf_timestep(mcmc_result[, 10], mcmc_result[, 11])
 
 ### effective size sample ###
 n.eff(as.matrix(mcmc_result[, 2:(length(mcmc_result) - 1)]))
@@ -303,24 +331,26 @@ n.eff(as.matrix(mcmc_result[, 2:4]))
 n.eff(as.matrix(mcmc_result[, 5:7]))
 n.eff(as.matrix(mcmc_result[, 8:11]))
 
-library(OUwie)
-library(corHMM)
-
+### BMS CALCULATION - TRAIT EVOLUTION ###
 X_to_BMS <- abs(result_all_species$hedgesg)
 X_to_BMS <- setNames(X_to_BMS, result_all_species$species_complete)
 Trait <- data.frame(Genus_species = names(hedgesg),
            Reg = as.numeric(hedgesg),
            X = as.numeric(X_to_BMS))
-tree_to_bms <- rayDISC(resolved_tree_ncbi, Trait[,c(1,2)], model="ER", node.states="marginal")
+tree_to_bms <- rayDISC(resolved_tree_ncbi, 
+                       Trait[,c(1,2)], model="ER",
+                       node.states="marginal")
 
 my_map <- make.simmap(tree_to_bms$phy,hedgesg, model="ER")
 plot(my_map)
+plotRECON(tree_to_bms$phy, tree_to_bms$states)
 
 bms <- OUwie(tree_to_bms$phy,Trait,model=c("BMS"))
 OUM <- OUwie(tree_to_bms$phy,Trait,model=c("OUM"))
 aicc <- c(bms$AICc, OUM$AICc)
 names(aicc) <- c("BMS", "OUM")
 aic.w(aicc)
+dbinom(46:54, 100, 0.5)
 
 ### organizing data to graphs with pivot ###
 # transitions #
@@ -348,7 +378,6 @@ mcmc_result_pivoted <- mcmc_result_pivoted |>
 
 ### plots ###
 library(BayesFactor)
-library(OUwie)
 
 mcmc_result_pivoted$Speciation <- as.factor(mcmc_result_pivoted$Speciation)
 bf = lmBF(LambdaPosterior ~ Speciation, data=mcmc_result_pivoted)
