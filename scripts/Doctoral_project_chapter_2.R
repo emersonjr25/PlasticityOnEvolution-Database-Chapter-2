@@ -145,116 +145,130 @@ first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
 
 seeds <- c(2, 3, 4)
-#for(i in seq_along(seeds)){
-#  set.seed(seeds[i])
-#}
-set.seed(seeds[1])
-states_choice <- c("one") #can be one or two
-if(states_choice == "one"){
-  # states first way - around 0.2, 0.5, 0.8 #
-  states <- function(x){
-    if(x <= 0.35){
-      x <- 1
-    } else if (x > 0.35 & x <= 0.65){
-      x <- 2
-    } else if(x > 0.65){
-      x <- 3
+for(i in seq_along(seeds)){
+  set.seed(seeds[i])
+  
+  states_choice <- c("one") #can be one or two
+  if(states_choice == "one"){
+    # states first way - around 0.2, 0.5, 0.8 #
+    states <- function(x){
+      if(x <= 0.35){
+        x <- 1
+      } else if (x > 0.35 & x <= 0.65){
+        x <- 2
+      } else if(x > 0.65){
+        x <- 3
+      }
     }
-  }
-} else if(states_choice == "two"){
-  # states second way - using 3 quartiles #
-  states <- function(x){
-    if(x <= first_quartile){
-      x <- 1
-    } else if (x > first_quartile & x <= second_quartile){
-      x <- 2
-    } else if(x > second_quartile){
-      x <- 3
+  } else if(states_choice == "two"){
+    # states second way - using 3 quartiles #
+    states <- function(x){
+      if(x <= first_quartile){
+        x <- 1
+      } else if (x > first_quartile & x <= second_quartile){
+        x <- 2
+      } else if(x > second_quartile){
+        x <- 3
+      }
     }
+  } else {
+    message("Error! Chose 'one' or 'two'")
   }
-} else {
-  message("Error! Chose 'one' or 'two'")
+  
+  hedgesg <- sapply(hedgesg, states)
+  hedgesg <- setNames(hedgesg, result_all_species$species_complete)
+  
+  ### MUSSE CALCULATION NCBI ###
+  ### manual corrections in phylogeny ###
+  info_fix_poly <- build_info(species, tree_ncbi, db="ncbi")
+  input_fix_poly <- info2input(info_fix_poly, tree_ncbi)
+  resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
+                                 forceultrametric=TRUE)
+  resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
+  #save.image('full_and_phy_ready.RDS')
+  #load('full_and_phy_ready.RDS')
+  resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
+  
+  ### musse ###
+  # 1 musse full #
+  musse_full <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
+  init <- starting.point.musse(resolved_tree_ncbi, k = 3)
+  result_musse_full <- find.mle(musse_full, x.init = init)
+  round(result_musse_full$par, 9)
+  
+  # 2 musse null #
+  musse_null <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
+                          mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
+                          q23 ~ q12, q31 ~ 0, q32 ~ q12)
+  result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
+  round(result_musse_null$par, 9)
+  
+  # 3 musse lambda #
+  musse_lambda <- constrain(musse_full, mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
+                            q23 ~ q12, q31 ~ 0, q32 ~ q12)
+  result_lambda <- find.mle(musse_lambda, x.init = init[argnames(musse_lambda)])
+  round(result_lambda$par, 9)
+  
+  # 4 musse mu #
+  musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
+                        q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
+  result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
+  round(result_mu$par, 9)
+  
+  # anova to see best musse model #
+  anova_result <- anova(result_musse_null,
+                        all.different = result_musse_full,
+                        free.lambda = result_lambda,
+                        free.mu = result_mu)
+  
+  # look results to best model #
+  aicw(setNames(anova_result$AIC, row.names(anova_result)))
+  round(coef(result_musse_full), 9)
+  logLik(result_musse_full)
+  AIC(result_musse_full)
+  round(result_musse_full$par, 9)
+  
+  # percentage to rates #
+  prop_lambda <- round(((result_musse_full$par[1:3]  / max(result_musse_full$par[1:3])) * 100), 3)
+  prop_mu <- round(((result_musse_full$par[4:6]  / max(result_musse_full$par[4:6])) * 100), 3)
+  prop_transi <- round(((result_musse_full$par[7:length(result_musse_full$par)]  / max(result_musse_full$par[7:length(result_musse_full$par)])) * 100), 3)
+  
+  #save.image(paste0("output/", rep", "_", seeds[i], "_", "stat",
+  #                  "_", states_choice, "_", "envi.RDS"))
+  
+  ###### Bayesian MCMC to find posterior density #######
+  prior <- make.prior.exponential(1/2)
+  
+  preliminar <- mcmc(musse_full, 
+                     result_musse_full$par, 
+                     nsteps=100, prior=prior,
+                     w=1, print.every = 0)
+  
+  w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
+  
+  mcmc_result <- mcmc(musse_full, 
+                      init[colnames(w)], 
+                      nsteps=100,prior=prior, 
+                      w=w, print.every=10)
+  
+  write.csv2(mcmc_result, file=paste0("output/","rep", "_",
+                                      seeds[i], "_",
+                                      "stat", "_",
+                                      states_choice, "_",
+                                      "mcmc.csv"),
+             row.names = FALSE)
+  saveRDS(mcmc_result, file=paste0("output/","rep", "_",
+                                   seeds[i], "_",
+                                   "stat", "_",
+                                   states_choice, "_",
+                                   "mcmc.RDS"))
 }
-
-hedgesg <- sapply(hedgesg, states)
-hedgesg <- setNames(hedgesg, result_all_species$species_complete)
-
-### MUSSE CALCULATION NCBI ###
-### manual corrections in phylogeny ###
-info_fix_poly <- build_info(species, tree_ncbi, db="ncbi")
-input_fix_poly <- info2input(info_fix_poly, tree_ncbi)
-resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
-                               forceultrametric=TRUE)
-resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
-#save.image('full_and_phy_ready.RDS')
-load('full_and_phy_ready.RDS')
-resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
-
-### musse ###
-# 1 musse full #
-musse_full <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
-init <- starting.point.musse(resolved_tree_ncbi, k = 3)
-result_musse_full <- find.mle(musse_full, x.init = init)
-round(result_musse_full$par, 9)
-
-# 2 musse null #
-musse_null <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
-                        mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
-                        q23 ~ q12, q31 ~ 0, q32 ~ q12)
-result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
-round(result_musse_null$par, 9)
-
-# 3 musse lambda #
-musse_lambda <- constrain(musse_full, mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
-                        q23 ~ q12, q31 ~ 0, q32 ~ q12)
-result_lambda <- find.mle(musse_lambda, x.init = init[argnames(musse_lambda)])
-round(result_lambda$par, 9)
-
-# 4 musse mu #
-musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
-          q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
-result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
-round(result_mu$par, 9)
-
-# anova to see best musse model #
-anova_result <- anova(result_musse_null,
-                      all.different = result_musse_full,
-                      free.lambda = result_lambda,
-                      free.mu = result_mu)
-
-# look results to best model #
-aicw(setNames(anova_result$AIC, row.names(anova_result)))
-round(coef(result_musse_full), 9)
-logLik(result_musse_full)
-AIC(result_musse_full)
-round(result_musse_full$par, 9)
-
-# percentage to rates #
-prop_lambda <- round(((result_musse_full$par[1:3]  / max(result_musse_full$par[1:3])) * 100), 3)
-prop_mu <- round(((result_musse_full$par[4:6]  / max(result_musse_full$par[4:6])) * 100), 3)
-prop_transi <- round(((result_musse_full$par[7:length(result_musse_full$par)]  / max(result_musse_full$par[7:length(result_musse_full$par)])) * 100), 3)
-
-###### Bayesian MCMC to find posterior density #######
-prior <- make.prior.exponential(1/2)
-
-preliminar <- mcmc(musse_full, 
-                   result_musse_full$par, 
-                   nsteps=100, prior=prior,
-                   w=1, print.every = 0)
-
-w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
-
-mcmc_result <- mcmc(musse_full, 
-                    init[colnames(w)], 
-                    nsteps=3000,prior=prior, 
-                    w=w, print.every=10)
-
 mcmc_max <- nrow(mcmc_result)
 mcmc_out_burn_in <- round(nrow(mcmc_result) * 0.2) + 1
 mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
 #save.image("mcmc.rds")
-load("mcmc.rds")
-
+#load("mcmc.rds")
+#mcmc_result <- readRDS("rep_4_stat_one_mcmc.RDS")
 ####### effective size sample ########
 n.eff(as.matrix(mcmc_result[, 2:(length(mcmc_result) - 1)]))
 n.eff(as.matrix(mcmc_result[, 2:4]))
