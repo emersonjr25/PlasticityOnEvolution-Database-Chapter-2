@@ -27,8 +27,6 @@ library(corHMM)
 
 dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",") 
 
-set.seed(1)
-
 #### ENGINEER DATA AND MODELING ####
 
 subdata <- dados %>% 
@@ -108,7 +106,6 @@ result$hedgesg <- mapply(hed_g, mean_min_values$mean_variable,
                           result$sd_pool)
 
 #### CLEAN DATA ####
-
 min_test_values <- test_equal_temperature(min_values, mean)
 max_test_values <- test_equal_temperature(max_values, mean)
 
@@ -133,13 +130,26 @@ result_all_species <- result %>%
   group_by(species_complete) %>%
   summarise(hedgesg = mean(hedgesg))
 
-### STATES ###
 hedgesg <- abs(result_all_species$hedgesg)
 
+#### phylogeny construction - NCBI ####
+species <- unique(result_all_species$species_complete)
+species_info_ncbi <- classification(species, db='ncbi')
+species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
+tree_ncbi <- species_tree_ncbi$phylo
+
+#save.image("table_and_phy_ready.RDS")
+#load("table_and_phy_ready.RDS")
+### STATES ###
 first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
 
-states_choice <- c("two") #can be one, two, or three
+seeds <- c(2, 3, 4)
+#for(i in seq_along(seeds)){
+#  set.seed(seeds[i])
+#}
+set.seed(seeds[1])
+states_choice <- c("one") #can be one or two
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
@@ -162,50 +172,23 @@ if(states_choice == "one"){
       x <- 3
     }
   }
-} else if(states_choice == "three"){
-  # states third way - some articles #
-  # can considered very low, low, and medium/high or #
-  # low, medium, and high #
-  states <- function(x){
-    if(x <= 0.2){
-      x <- 1
-    } else if (x > 0.2 & x <= 0.5){
-      x <- 2
-    } else if(x > 0.5){
-      x <- 3
-    }
-  }
 } else {
-  message("Error! Chose 'one', 'two', or 'three")
+  message("Error! Chose 'one' or 'two'")
 }
 
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
-species <- unique(result_all_species$species_complete)
-
-### histogram ###
-table_histogram <- as.data.frame(hedgesg)
-ggplot(table_histogram, aes(x = hedgesg)) + 
-  geom_bar() + 
-  scale_x_continuous(breaks = 1:16) + 
-  labs(x="Hedge's g effect", y= "Frequency")
-
-#### phylogeny construction - NCBI ####
-species_info_ncbi <- classification(species, db='ncbi')
-species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
-resolved_tree_ncbi <- species_tree_ncbi$phylo
 
 ### MUSSE CALCULATION NCBI ###
-
 ### manual corrections in phylogeny ###
-info_fix_poly <- build_info(species, resolved_tree_ncbi, db="ncbi")
-input_fix_poly <- info2input(info_fix_poly, resolved_tree_ncbi)
-resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = resolved_tree_ncbi,
+info_fix_poly <- build_info(species, tree_ncbi, db="ncbi")
+input_fix_poly <- info2input(info_fix_poly, tree_ncbi)
+resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
                                forceultrametric=TRUE)
 resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
-#save.image('first_step.RDS')
-load('first_step.RDS')
-#resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
+#save.image('full_and_phy_ready.RDS')
+load('full_and_phy_ready.RDS')
+resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
 
 ### musse ###
 # 1 musse full #
@@ -214,25 +197,20 @@ init <- starting.point.musse(resolved_tree_ncbi, k = 3)
 result_musse_full <- find.mle(musse_full, x.init = init)
 round(result_musse_full$par, 9)
 
-# 2 musse ordered #
-musse_ordered <- constrain(musse_full, q13 ~ 0, q31 ~ 0)
-result_musse_ordered <- find.mle(musse_ordered, x.init = init[argnames(musse_ordered)])
-round(result_musse_ordered$par, 9)
-
-# 3 musse null #
+# 2 musse null #
 musse_null <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
                         mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
                         q23 ~ q12, q31 ~ 0, q32 ~ q12)
 result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
 round(result_musse_null$par, 9)
 
-# 4 musse lambda #
+# 3 musse lambda #
 musse_lambda <- constrain(musse_full, mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
                         q23 ~ q12, q31 ~ 0, q32 ~ q12)
 result_lambda <- find.mle(musse_lambda, x.init = init[argnames(musse_lambda)])
 round(result_lambda$par, 9)
 
-# 5 musse mu #
+# 4 musse mu #
 musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
           q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
 result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
@@ -241,50 +219,52 @@ round(result_mu$par, 9)
 # anova to see best musse model #
 anova_result <- anova(result_musse_null,
                       all.different = result_musse_full,
-                      free.ordered = result_musse_ordered,
                       free.lambda = result_lambda,
                       free.mu = result_mu)
 
-#save.image("my_env.RDS")
-#load("my_env.RDS")
-
 # look results to best model #
 aicw(setNames(anova_result$AIC, row.names(anova_result)))
-round(coef(result_musse_ordered), 9)
-logLik(result_musse_ordered)
-AIC(result_musse_ordered)
-round(result_musse_ordered$par, 9)
+round(coef(result_musse_full), 9)
+logLik(result_musse_full)
+AIC(result_musse_full)
+round(result_musse_full$par, 9)
 
-prop_lambda <- (result_musse_ordered$par[1:3]  / max(result_musse_ordered$par[1:3])) * 100
-prop_mu <- (result_musse_ordered$par[4:6]  / max(result_musse_ordered$par[4:6])) * 100
-prop_transi <- (result_musse_ordered$par[7:length(result_musse_ordered$par)]  / max(result_musse_ordered$par[7:length(result_musse_ordered$par)])) * 100
+# percentage to rates #
+prop_lambda <- round(((result_musse_full$par[1:3]  / max(result_musse_full$par[1:3])) * 100), 3)
+prop_mu <- round(((result_musse_full$par[4:6]  / max(result_musse_full$par[4:6])) * 100), 3)
+prop_transi <- round(((result_musse_full$par[7:length(result_musse_full$par)]  / max(result_musse_full$par[7:length(result_musse_full$par)])) * 100), 3)
 
-#### Bayesian MCMC to find posterior density ####
+###### Bayesian MCMC to find posterior density #######
 prior <- make.prior.exponential(1/2)
 
-preliminar <- mcmc(musse_ordered, 
-                   result_musse_ordered$par, 
+preliminar <- mcmc(musse_full, 
+                   result_musse_full$par, 
                    nsteps=100, prior=prior,
                    w=1, print.every = 0)
 
 w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
 
-mcmc_result <- mcmc(musse_ordered, 
+mcmc_result <- mcmc(musse_full, 
                     init[colnames(w)], 
-                    nsteps=1500,prior=prior, 
+                    nsteps=3000,prior=prior, 
                     w=w, print.every=10)
-#saveRDS(mcmc_result, file="mcmc.rds")
 
-# remove burn-in #
-mcmc_result <- readRDS("mcmc.rds")
 mcmc_max <- nrow(mcmc_result)
 mcmc_out_burn_in <- round(nrow(mcmc_result) * 0.2) + 1
 mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
+#save.image("mcmc.rds")
+load("mcmc.rds")
 
-mean_posteriors <- colMeans(mcmc_result)[2:ncol(mcmc_result)]
-# mean result per variable #
+####### effective size sample ########
+n.eff(as.matrix(mcmc_result[, 2:(length(mcmc_result) - 1)]))
+n.eff(as.matrix(mcmc_result[, 2:4]))
+n.eff(as.matrix(mcmc_result[, 5:7]))
+n.eff(as.matrix(mcmc_result[, 8:13]))
+
+###### BAYES FACTOR CALCULATION ######
 bf_mean <- function(x, y) x / y
 bf_timestep <- function(x, y) mean(x / y)
+mean_posteriors <- colMeans(mcmc_result)[2:ncol(mcmc_result)]
 # lamb 1 x lamb 2 #
 bf_mean(mean_posteriors[1], mean_posteriors[2])
 bf_timestep(mcmc_result[, 2], mcmc_result[, 3])
@@ -306,32 +286,53 @@ bf_mean(mean_posteriors[5], mean_posteriors[6])
 bf_timestep(mcmc_result[, 6], mcmc_result[, 7])
 
 # transition #
-# q12 x q21 #
+# q12 x q13 #
 bf_mean(mean_posteriors[7], mean_posteriors[8])
 bf_timestep(mcmc_result[, 8], mcmc_result[, 9])
-# q12 x q23 #
+# q12 x q21 #
 bf_mean(mean_posteriors[7], mean_posteriors[9])
 bf_timestep(mcmc_result[, 8], mcmc_result[, 10])
-# q12 x q32 #
+# q12 x q23 #
 bf_mean(mean_posteriors[7], mean_posteriors[10])
 bf_timestep(mcmc_result[, 8], mcmc_result[, 11])
-# q21 x q23 #
+# q12 x q31 #
+bf_mean(mean_posteriors[7], mean_posteriors[11])
+bf_timestep(mcmc_result[, 8], mcmc_result[, 12])
+# q12 x q32 #
+bf_mean(mean_posteriors[7], mean_posteriors[12])
+bf_timestep(mcmc_result[, 8], mcmc_result[, 13])
+# q13 x q21 #
 bf_mean(mean_posteriors[8], mean_posteriors[9])
 bf_timestep(mcmc_result[, 9], mcmc_result[, 10])
-# q21 x q32 #
+# q13 x q23 #
 bf_mean(mean_posteriors[8], mean_posteriors[10])
 bf_timestep(mcmc_result[, 9], mcmc_result[, 11])
-# q23 x q32 #
+# q13 x q31 #
+bf_mean(mean_posteriors[8], mean_posteriors[11])
+bf_timestep(mcmc_result[, 9], mcmc_result[, 12])
+# q13 x q32 #
+bf_mean(mean_posteriors[8], mean_posteriors[12])
+bf_timestep(mcmc_result[, 9], mcmc_result[, 13])
+# q21 x q23 #
 bf_mean(mean_posteriors[9], mean_posteriors[10])
 bf_timestep(mcmc_result[, 10], mcmc_result[, 11])
+# q21 x q31 #
+bf_mean(mean_posteriors[9], mean_posteriors[11])
+bf_timestep(mcmc_result[, 10], mcmc_result[, 12])
+# q21 x q32 #
+bf_mean(mean_posteriors[9], mean_posteriors[12])
+bf_timestep(mcmc_result[, 10], mcmc_result[, 13])
+# q23 x q31 #
+bf_mean(mean_posteriors[10], mean_posteriors[11])
+bf_timestep(mcmc_result[, 11], mcmc_result[, 12])
+# q23 x q32 #
+bf_mean(mean_posteriors[10], mean_posteriors[12])
+bf_timestep(mcmc_result[, 11], mcmc_result[, 13])
+# q31 x q32 #
+bf_mean(mean_posteriors[11], mean_posteriors[12])
+bf_timestep(mcmc_result[, 12], mcmc_result[, 13])
 
-### effective size sample ###
-n.eff(as.matrix(mcmc_result[, 2:(length(mcmc_result) - 1)]))
-n.eff(as.matrix(mcmc_result[, 2:4]))
-n.eff(as.matrix(mcmc_result[, 5:7]))
-n.eff(as.matrix(mcmc_result[, 8:11]))
-
-### BMS CALCULATION - TRAIT EVOLUTION ###
+########### BMS CALCULATION - TRAIT EVOLUTION ##########
 X_to_BMS <- abs(result_all_species$hedgesg)
 X_to_BMS <- setNames(X_to_BMS, result_all_species$species_complete)
 Trait <- data.frame(Genus_species = names(hedgesg),
@@ -341,18 +342,17 @@ tree_to_bms <- rayDISC(resolved_tree_ncbi,
                        Trait[,c(1,2)], model="ER",
                        node.states="marginal")
 
-my_map <- make.simmap(tree_to_bms$phy,hedgesg, model="ER")
-plot(my_map)
-plotRECON(tree_to_bms$phy, tree_to_bms$states)
+#my_map <- make.simmap(tree_to_bms$phy,hedgesg, model="ER")
+#plot(my_map)
+#plotRECON(tree_to_bms$phy, tree_to_bms$states)
 
 bms <- OUwie(tree_to_bms$phy,Trait,model=c("BMS"))
 OUM <- OUwie(tree_to_bms$phy,Trait,model=c("OUM"))
 aicc <- c(bms$AICc, OUM$AICc)
 names(aicc) <- c("BMS", "OUM")
 aic.w(aicc)
-dbinom(46:54, 100, 0.5)
 
-### organizing data to graphs with pivot ###
+########## organizing data to graphs with pivot ########
 # transitions #
 transitions <- mcmc_result %>%
   pivot_longer(q12:q32)
@@ -376,12 +376,7 @@ mcmc_result_pivoted <- mcmc_result_pivoted |>
          DiversificationPosterior = LambdaPosterior - ExtinctionPosterior,
          Diversification = str_replace(Diversification, 'lambda', 'Diversif'))
 
-### plots ###
-library(BayesFactor)
-
-mcmc_result_pivoted$Speciation <- as.factor(mcmc_result_pivoted$Speciation)
-bf = lmBF(LambdaPosterior ~ Speciation, data=mcmc_result_pivoted)
-
+#################### plots ############################
 # temporal series #
 save_result <- TRUE
 markov <- ggplot(mcmc_result, aes(i, p)) +
@@ -541,3 +536,10 @@ if(save_result == TRUE){
                           legend=FALSE))
   dev.off()
 }
+
+### histogram ###
+table_histogram <- as.data.frame(hedgesg)
+ggplot(table_histogram, aes(x = hedgesg)) +
+ geom_bar() +
+ scale_x_continuous(breaks = 1:16) +
+ labs(x="Hedge's g effect", y= "Frequency")
