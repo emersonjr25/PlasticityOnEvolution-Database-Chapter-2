@@ -22,6 +22,7 @@ library(randtip)
 library(stableGR)
 library(OUwie)
 library(corHMM)
+library(bayou)
 
 ### READING DATA ###
 
@@ -264,7 +265,7 @@ for(rep in seq_along(seeds_phylogeny_rep)){
                row.names = FALSE)
   }
 }
-read_csv2("output/markov_4_stat_one_phy_100mcmc.csv")
+
 mcmc_max <- nrow(mcmc_result)
 mcmc_out_burn_in <- round(nrow(mcmc_result) * 0.2) + 1
 mcmc_result <- mcmc_result[mcmc_out_burn_in:mcmc_max, ]
@@ -367,10 +368,15 @@ OUM <- OUwie(tree_to_bms$phy,Trait,model=c("OUM"))
 aicc <- c(bms$AICc, OUM$AICc)
 names(aicc) <- c("BMS", "OUM")
 aic.w(aicc)
-library(bayou)
-prior <- make.prior(tree_to_bms$phy)
-bayou.makeMCMC(tree=tree_a, dat=Trait_a, SE = 0, 
-               model = "OU", prior=prior )
+
+prior1 <- make.prior(resolved_tree_ncbi)
+bayou.makeMCMC(tree=resolved_tree_ncbi, dat=X_to_BMS,
+               model = "OU", prior=prior1)
+prior2 <- make.prior(tree_to_bms$phy)
+model <- bayou.makeMCMC(tree=tree_to_bms$phy, dat=X_to_BMS,
+              model = "OU", prior=prior)
+
+model <- rjmcmc.bm(tree_to_bms$phy, dat=X_to_BMS, model="BM")
 
 ########## organizing data to graphs with pivot ########
 # transitions #
