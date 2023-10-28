@@ -1,6 +1,25 @@
-reptiles_names <- readxl::read_excel("data/raw/reptile_checklist_2023_07.xlsx")
+library(tidyverse)
+library(effectsize)
+library(here)
+library(rotl)
+library(ape)
+library(taxize)
+library(diversitree)
+library(RRphylo)
+library(phytools)
+library(ggplot2)
+library(geiger)
+library(randtip)
+library(stableGR)
+library(OUwie)
+library(corHMM)
+library(bayou)
 
+# reading #
+reptiles_names <- readxl::read_excel("data/raw/reptile_checklist_2023_07.xlsx")
 species_names <- reptiles_names$Species
+
+# download reptiles #
 species_info_ott <- tnrs_match_names(species_names)
 species_info_ott_without_na <- species_info_ott[!is.na(species_info_ott$ott_id), ]
 lista <- list(ott132336 = "pruned_ott_id", ott168143 = "pruned_ott_id", ott2897028 = "pruned_ott_id", ott306228 = "pruned_ott_id", ott3129916 = "pruned_ott_id", ott3247652 = "pruned_ott_id", ott3611538 = "pruned_ott_id", ott4120447 = "pruned_ott_id", ott4120808 = "pruned_ott_id", ott4120816 = "pruned_ott_id", ott4121615 = "pruned_ott_id", ott4122099 = "pruned_ott_id", ott4122151 = "pruned_ott_id", ott4122152 = "pruned_ott_id", ott4122218 = "pruned_ott_id", ott4122219 = "pruned_ott_id", ott4123558 = "pruned_ott_id", 
@@ -15,7 +34,20 @@ for(i in seq_along(lista)){
 pos <- which(species_info_ott_without_na$ott_id %in% ids)
 species_info_ott_without_na <- species_info_ott_without_na[-pos, ]
 species_tree_ott <- tol_induced_subtree(ott_ids = species_info_ott_without_na$ott_id)
+saveRDS(species_tree_ott, "ott_tree.RDS")
 
-species_info_ncbi <- classification(species_names, db='ncbi')
+# download ncbi #
+species_info_ncbi <- classification(spe_new, db='ncbi')
 species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
 tree_ncbi <- species_tree_ncbi$phylo
+save.image("ncbi.RDS")
+saveRDS(species_info_ncbi, "ncbispecies.RDS")
+
+tree <- read.tree("phyliptree.phy")
+ids <- read_table("taxidlist.txt")
+
+plotTree(tree)
+a <- read.table("tax_report.txt", sep="|", header=TRUE)
+new <- a[!is.na(a[,4]), ]
+str_squish()
+spe_new <- str_remove_all(as.character(new[, 2]), "\\t")
