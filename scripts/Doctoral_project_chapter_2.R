@@ -181,10 +181,12 @@ hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 for(rep in seq_along(seeds_phylogeny_rep)){
   set.seed(seeds_phylogeny_rep[rep])
   ### manual corrections in phylogeny ###
-  info_fix_poly <- build_info(species, tree_ncbi, db="ncbi")
+  info_fix_poly <- build_info(species, tree_ncbi, 
+                              find.ranks=TRUE, db="ncbi")
   input_fix_poly <- info2input(info_fix_poly, tree_ncbi)
   resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
-                                 forceultrametric=TRUE)
+                                 forceultrametric=TRUE,
+                                 prune=FALSE)
   resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
   #save.image('full_and_phy_ready.RDS')
   #load('full_and_phy_ready.RDS')
