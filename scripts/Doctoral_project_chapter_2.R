@@ -23,6 +23,7 @@ library(stableGR)
 library(OUwie)
 library(corHMM)
 library(bayou)
+library(ggtree)
 
 ### READING DATA ###
 
