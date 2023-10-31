@@ -145,8 +145,8 @@ load("table_and_phy_ready.RDS")
 first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
 
+seeds_phylogeny_rep <- c(100)
 seeds <- c(2, 3, 4)
-seeds_phylogeny_rep <- c(100, 101)
 
 states_choice <- c("one") #can be one or two
 if(states_choice == "one"){
@@ -187,10 +187,10 @@ for(rep in seq_along(seeds_phylogeny_rep)){
   resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
                                  forceultrametric=TRUE)
   resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
-
   #save.image('full_and_phy_ready.RDS')
   #load('full_and_phy_ready.RDS')
   resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
+  
   for(i in seq_along(seeds)){
     set.seed(seeds[i])
     ### MUSSE CALCULATION NCBI ###
@@ -246,16 +246,16 @@ for(rep in seq_along(seeds_phylogeny_rep)){
     ###### Bayesian MCMC to find posterior density #######
     prior <- make.prior.exponential(1/2)
     
-    preliminar <- mcmc(musse_full, 
+    preliminar <- diversitree::mcmc(musse_full, 
                        result_musse_full$par, 
                        nsteps=100, prior=prior,
                        w=1, print.every = 0)
     
     w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
     
-    mcmc_result <- mcmc(musse_full, 
+    mcmc_result <- diversitree::mcmc(musse_full, 
                         init[colnames(w)], 
-                        nsteps=100,prior=prior, 
+                        nsteps=70000,prior=prior, 
                         w=w, print.every=10)
     
     write.csv2(mcmc_result, file=paste0("output/","markov", "_",

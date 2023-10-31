@@ -19,6 +19,13 @@ library(bayou)
 reptiles_names <- readxl::read_excel("data/raw/Usados/reptile_checklist_2023_07.xlsx")
 species_names <- reptiles_names$Species
 
+### species focal and complete phylogeny ###
+tree_one <- read.tree("data/raw/Usados/phyliptree.phy")
+tree_two <- readRDS('resolved_tree_ncbi.RDS')
+tree_three <- readRDS('testINFO.RDS')
+tree_four <- readRDS('tree_general.RDS')
+
+### species total and incomplete phylogeny ###
 info_fix_poly <- readRDS('info_fix_poly.RDS')
 input_fix_poly <- readRDS('input_fix_poly.RDS')
 
@@ -31,7 +38,7 @@ resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
                                forceultrametric=TRUE,
                                prune=TRUE)
 
-tree_one <- read.tree("data/raw/Usados/phyliptree.phy")
+
 info_fix_poly <- build_info(species, 
                             tree_one,
                             find.ranks=TRUE, db="ncbi")
