@@ -37,11 +37,11 @@ dev.off()
 tree <- readRDS('data/raw/input_rds_randtip/resolved_tree_ncbi.RDS')
 
 info_fix_poly <- build_info(species, 
-                            tree,
+                            resolved_tree_ncbi4,
                             find.ranks=TRUE, db="ncbi",
                             mode="list")
-input_fix_poly <- info2input(info_fix_poly, tree)
-tree_final <- rand_tip(input = input_fix_poly, tree = tree,
+input_fix_poly <- info2input(info_fix_poly, resolved_tree_ncbi4)
+tree_final <- rand_tip(input = input_fix_poly, tree = resolved_tree_ncbi4,
                        forceultrametric=TRUE,
                        prune=TRUE)
 
@@ -64,4 +64,7 @@ resolved_tree_ncb2 <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
                                prune=FALSE)
 resolved_tree_ncbi3 <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
                                 forceultrametric=FALSE,
+                                prune=TRUE)
+resolved_tree_ncbi4 <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
+                                forceultrametric=TRUE,
                                 prune=TRUE)
