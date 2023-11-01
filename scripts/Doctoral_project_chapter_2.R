@@ -146,8 +146,9 @@ load("table_and_phy_ready.RDS")
 first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
 
-seeds_phylogeny_rep <- c(100)
+seeds_phylogeny_rep <- c(100, 101, 102)
 seeds <- c(2, 3, 4)
+time <- 100000
 
 states_choice <- c("one") #can be one or two
 if(states_choice == "one"){
@@ -184,7 +185,8 @@ for(rep in seq_along(seeds_phylogeny_rep)){
   ### manual corrections in phylogeny ###
   info_fix_poly <- build_info(species, tree_ncbi, 
                               find.ranks=TRUE, db="ncbi")
-  input_fix_poly <- info2input(info_fix_poly, tree_ncbi)
+  input_fix_poly <- info2input(info_fix_poly, tree_ncbi,
+                               parallelize=F)
   resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
                                  forceultrametric=TRUE)
   resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
@@ -256,8 +258,8 @@ for(rep in seq_along(seeds_phylogeny_rep)){
     
     mcmc_result <- diversitree::mcmc(musse_full, 
                         init[colnames(w)], 
-                        nsteps=70000,prior=prior, 
-                        w=w, print.every=10)
+                        nsteps=time,prior=prior, 
+                        w=w, print.every=100)
     
     write.csv2(mcmc_result, file=paste0("output/","markov", "_",
                                         seeds[i], "_",
