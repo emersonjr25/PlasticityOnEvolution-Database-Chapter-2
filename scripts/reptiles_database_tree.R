@@ -16,7 +16,7 @@ library(corHMM)
 library(bayou)
 library(ggtree)
 
-# reading #
+# reading table and plot #
 reptiles_names <- readxl::read_excel("data/raw/Usados/reptile_checklist_2023_07.xlsx")
 species_names <- reptiles_names$Species
 load("full_and_phy_ready.RDS")
@@ -34,7 +34,8 @@ ggtree(tree_prune) +
 dev.off()
 
 ### species focal and complete phylogeny - list + prune ###
-tree <- readRDS('resolved_tree_ncbi.RDS')
+tree <- readRDS('data/raw/input_rds_randtip/resolved_tree_ncbi.RDS')
+
 info_fix_poly <- build_info(species, 
                             tree,
                             find.ranks=TRUE, db="ncbi",
@@ -45,13 +46,22 @@ tree_final <- rand_tip(input = input_fix_poly, tree = tree,
                        prune=TRUE)
 
 ### species total and incomplete phylogeny - backbone + without prune ###
-info_fix_poly <- readRDS('info_fix_poly.RDS')
-input_fix_poly <- readRDS('input_fix_poly.RDS')
+# verifying input #
+info_fix_poly <- build_info(unique(species_names), 
+                            tree_ncbi,
+                            find.ranks=TRUE, db="ncbi",
+                            mode="backbone")
+input_fix_poly <- info2input(info_fix_poly, tree_ncbi)
 
+info_fix_poly <- readRDS('data/raw/input_rds_randtip/info_fix_poly.RDS')
+input_fix_poly <- readRDS('data/raw/input_rds_randtip/input_fix_poly.RDS')
+
+resolved_tree_ncb1 <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
+                               forceultrametric=TRUE,
+                               prune=FALSE)
 resolved_tree_ncb2 <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
                                forceultrametric=FALSE,
                                prune=FALSE)
 resolved_tree_ncbi3 <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
                                 forceultrametric=FALSE,
                                 prune=TRUE)
-saveRDS(resolved_tree_ncbi1, file="tree_without_prune.RDS")
