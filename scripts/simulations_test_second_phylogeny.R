@@ -146,11 +146,11 @@ load("table_and_phy_ready.RDS")
 first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
 
-seeds_phylogeny_rep <- c(100, 101, 102)
+seeds_phylogeny_rep <- c(102, 103, 104)
 seeds <- c(2, 3, 4)
 time <- 100000
 
-states_choice <- c("one") #can be one or two
+states_choice <- c("one") #can be one, two, or three
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
@@ -173,8 +173,21 @@ if(states_choice == "one"){
       x <- 3
     }
   }
+} else if(states_choice == "three"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.2){
+      x <- 1
+    } else if (x > 0.2 & x <= 0.5){
+      x <- 2
+    } else if(x > 0.5){
+      x <- 3
+    }
+  }
 } else {
-  message("Error! Chose 'one' or 'two'")
+  message("Error! Chose 'one', 'two', or 'three")
 }
 
 hedgesg <- sapply(hedgesg, states)
