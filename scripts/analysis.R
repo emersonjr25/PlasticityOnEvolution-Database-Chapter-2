@@ -26,9 +26,9 @@ library(ggtree)
 ### reading data ###
 setwd("C:/Users/emers/OneDrive/Documentos/markov_result")
 
-########################################################
-### phy 1 ###
-########################################################
+#######################################################
+########### phylogeny with 3 cohen ways ###############
+#######################################################
 ### state one - 3 rep phy and 3 rep mcmc ###
 # phy seed 1 # 
 cohen_one_phy_one_rep_one <- read.csv2("phy1/state1/markov_2_stat_one_phy_100mcmc.csv")
@@ -71,47 +71,6 @@ cohen_three_phy_one_rep_three <- read.csv2("phy1/state3/markov_4_stat_three_phy_
 cohen_three_phy_two_rep_one <- read.csv2("phy1/state3/markov_2_stat_three_phy_101mcmc.csv")
 cohen_three_phy_two_rep_two <- read.csv2("phy1/state3/markov_3_stat_three_phy_101mcmc.csv")
 cohen_three_phy_two_rep_three <- read.csv2("phy1/state3/markov_4_stat_three_phy_101mcmc.csv")
-
-########################################################
-### phy 2 ###
-#######################################################
-### state one - 3 rep phy and 3 rep mcmc ###
-# phy seed 1 # 
-cohen_one_phy_one_rep_one <- read.csv2("phy2/state1/markov_2_stat_one_phy_102randtip_mcmc.csv")
-cohen_one_phy_one_rep_two <- read.csv2("phy2/state1/markov_3_stat_one_phy_102randtip_mcmc.csv")
-cohen_one_phy_one_rep_three <- read.csv2("phy2/state1/markov_4_stat_one_phy_102randtip_mcmc.csv")
-
-# phy seed 2 # 
-cohen_one_phy_two_rep_one <- read.csv2("phy2/state1/markov_2_stat_one_phy_103randtip_mcmc.csv")
-cohen_one_phy_two_rep_two <- read.csv2("phy2/state1/markov_3_stat_one_phy_103randtip_mcmc.csv")
-cohen_one_phy_two_rep_three <- read.csv2("phy2/state1/markov_4_stat_one_phy_103randtip_mcmc.csv")
-
-# phy seed 3 #
-cohen_one_phy_three_rep_one <- read.csv2("phy2/state1/markov_2_stat_one_phy_104randtip_mcmc.csv")
-cohen_one_phy_three_rep_two <- read.csv2("phy2/state1/markov_3_stat_one_phy_104randtip_mcmc.csv")
-cohen_one_phy_three_rep_three <- read.csv2("phy2/state1/markov_4_stat_one_phy_104randtip_mcmc.csv")
-
-### state two - 3 rep phy and 3 rep mcmc ###
-# phy seed 1 # 
-cohen_two_phy_one_rep_one <- read.csv2("phy2/state2/markov_2_stat_two_phy_103randtip_mcmc.csv")
-cohen_two_phy_one_rep_two <- read.csv2("phy2/state2/markov_3_stat_two_phy_103randtip_mcmc.csv")
-cohen_two_phy_one_rep_three <- read.csv2("phy2/state2/markov_4_stat_two_phy_103randtip_mcmc.csv")
-
-### state three - 3 rep phy and 3 rep mcmc ###
-# phy seed 1 # 
-cohen_three_phy_one_rep_one <- read.csv2("phy2/state3/markov_2_stat_three_phy_102randtip_mcmc.csv")
-cohen_three_phy_one_rep_two <- read.csv2("phy2/state3/markov_3_stat_three_phy_102randtip_mcmc.csv")
-cohen_three_phy_one_rep_three <- read.csv2("phy2/state3/markov_4_stat_three_phy_102randtip_mcmc.csv")
-
-# phy seed 2 # 
-cohen_three_phy_two_rep_one <- read.csv2("phy2/state3/markov_2_stat_three_phy_103randtip_mcmc.csv")
-cohen_three_phy_two_rep_two <- read.csv2("phy2/state3/markov_3_stat_three_phy_103randtip_mcmc.csv")
-cohen_three_phy_two_rep_three <- read.csv2("phy2/state3/markov_4_stat_three_phy_103randtip_mcmc.csv")
-
-# phy seed 3 # 
-cohen_three_phy_three_rep_one <- read.csv2("phy2/state3/markov_2_stat_three_phy_104randtip_mcmc.csv")
-cohen_three_phy_three_rep_two <- read.csv2("phy2/state3/markov_3_stat_three_phy_104randtip_mcmc.csv")
-cohen_three_phy_three_rep_three <- read.csv2("phy2/state3/markov_4_stat_three_phy_104randtip_mcmc.csv")
 
 state_chosen <- cohen_one_phy_one_rep_one
 
