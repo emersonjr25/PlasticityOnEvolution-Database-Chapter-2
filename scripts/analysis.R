@@ -25,6 +25,7 @@ library(ggtree)
 
 ### reading data ###
 setwd("C:/Users/emers/OneDrive/Documentos/markov_result")
+#load("mcmc.rds")
 
 #######################################################
 ########### phylogeny with 3 cohen ways ###############
@@ -319,6 +320,16 @@ if(save_result == TRUE){
   print(diversification)
   dev.off()
 }
+
+#### tree per states ####
+tiff("output/tree_original.jpg",
+     width = 800, height = 600, res=100)
+ggtree(reptiles_tree_time_tree) + 
+  geom_tiplab(align=TRUE, 
+              linesize=.1, size = 2.5) + 
+  geom_tree() + theme_tree() + 
+  hexpand(.5)
+dev.off()
 
 # tree per states #
 color.palette = colorRampPalette(c("#ffcd74", "#ff7251", "#9b2948"))

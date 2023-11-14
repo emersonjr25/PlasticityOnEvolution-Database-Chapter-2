@@ -133,15 +133,12 @@ result_all_species <- result %>%
   summarise(hedgesg = mean(hedgesg))
 
 hedgesg <- abs(result_all_species$hedgesg)
-
-#### phylogeny construction - NCBI ####
-species <- unique(result_all_species$species_complete)
-species_info_ncbi <- classification(species, db='ncbi')
-species_tree_ncbi <- class2tree(species_info_ncbi, check = TRUE)
-tree_ncbi <- species_tree_ncbi$phylo
-
 #save.image("table_and_phy_ready.RDS")
+
+#### phylogeny time tree ####
 load("table_and_phy_ready.RDS")
+reptiles_tree_time_tree <- read.newick("data/raw/species.nwk")
+
 ### STATES ###
 first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
@@ -193,100 +190,122 @@ if(states_choice == "one"){
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 
-for(rep in seq_along(seeds_phylogeny_rep)){
-  set.seed(seeds_phylogeny_rep[rep])
-  ### manual corrections in phylogeny ###
-  info_fix_poly <- build_info(species, tree_ncbi, 
+### choose phylogeny - expanded or not ###
+phylogeny_expanded <- "yes" # chose yes or not
+if (phylogeny_expanded == "yes"){
+  reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
+  info_fix_poly <- build_info(species, reptiles_tree_time_tree, 
                               find.ranks=TRUE, db="ncbi")
-  input_fix_poly <- info2input(info_fix_poly, tree_ncbi,
+  input_fix_poly <- info2input(info_fix_poly, reptiles_tree_time_tree,
                                parallelize=F)
-  resolved_tree_ncbi <- rand_tip(input = input_fix_poly, tree = tree_ncbi,
-                                 forceultrametric=TRUE)
-  resolved_tree_ncbi$tip.label <- gsub("_", " ", resolved_tree_ncbi$tip.label)
-  #save.image('full_and_phy_ready.RDS')
-  #load('full_and_phy_ready.RDS')
-  resolved_tree_ncbi <- fix.poly(resolved_tree_ncbi, type='resolve')
+  tree_time_tree_ready <- rand_tip(input = input_fix_poly, 
+                                   tree = reptiles_tree_time_tree,
+                                   forceultrametric=TRUE,
+                                   prune=TRUE)
+} else if (phylogeny_expanded == "not"){
+  ### manual corrections in phylogeny to use phylogeny directly ###
+  reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
+  hedgesg_without_lack <- hedgesg[!names(hedgesg) %in% lack_species]
+  different_species <- reptiles_tree_time_tree$tip.label[!reptiles_tree_time_tree$tip.label %in% names(hedgesg_without_lack)]
+  different_species_hedgesg <- names(hedgesg_without_lack)[!names(hedgesg_without_lack) %in%  reptiles_tree_time_tree$tip.label]
   
-  for(i in seq_along(seeds)){
-    set.seed(seeds[i])
-    ### MUSSE CALCULATION NCBI ###
-    
-    ### musse ###
-    # 1 musse full #
-    musse_full <- make.musse(resolved_tree_ncbi, states = hedgesg, k = 3)
-    init <- starting.point.musse(resolved_tree_ncbi, k = 3)
-    result_musse_full <- find.mle(musse_full, x.init = init)
-    round(result_musse_full$par, 9)
-    
-    # 2 musse null #
-    musse_null <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
-                            mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
-                            q23 ~ q12, q31 ~ 0, q32 ~ q12)
-    result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
-    round(result_musse_null$par, 9)
-    
-    # 3 musse lambda #
-    musse_lambda <- constrain(musse_full, mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
-                              q23 ~ q12, q31 ~ 0, q32 ~ q12)
-    result_lambda <- find.mle(musse_lambda, x.init = init[argnames(musse_lambda)])
-    round(result_lambda$par, 9)
-    
-    # 4 musse mu #
-    musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
-                          q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
-    result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
-    round(result_mu$par, 9)
-    
-    # anova to see best musse model #
-    anova_result <- anova(result_musse_null,
-                          all.different = result_musse_full,
-                          free.lambda = result_lambda,
-                          free.mu = result_mu)
-    
-    # look results to best model #
-    aicw(setNames(anova_result$AIC, row.names(anova_result)))
-    round(coef(result_musse_full), 9)
-    logLik(result_musse_full)
-    AIC(result_musse_full)
-    round(result_musse_full$par, 9)
-    
-    # percentage to rates #
-    prop_lambda <- round(((result_musse_full$par[1:3]  / max(result_musse_full$par[1:3])) * 100), 3)
-    prop_mu <- round(((result_musse_full$par[4:6]  / max(result_musse_full$par[4:6])) * 100), 3)
-    prop_transi <- round(((result_musse_full$par[7:length(result_musse_full$par)]  / max(result_musse_full$par[7:length(result_musse_full$par)])) * 100), 3)
-    
-    save.image(paste0("output/", "markov", "_", seeds[i], "_", "stat",
-                      "_", states_choice, "_", "phy", "_", seeds_phylogeny_rep[rep],
-                      "_", "envi.RDS"))
-    
-    ###### Bayesian MCMC to find posterior density #######
-    prior <- make.prior.exponential(1/2)
-    
-    preliminar <- diversitree::mcmc(musse_full, 
-                       result_musse_full$par, 
-                       nsteps=100, prior=prior,
-                       w=1, print.every = 0)
-    
-    w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
-    
-    mcmc_result <- diversitree::mcmc(musse_full, 
-                        init[colnames(w)], 
-                        nsteps=time,prior=prior, 
-                        w=w, print.every=100)
-    
-    write.csv2(mcmc_result, file=paste0("output/","markov", "_",
-                                        seeds[i], "_",
-                                        "stat", "_",
-                                        states_choice, "_",
-                                        "phy", "_", seeds_phylogeny_rep[rep],
-                                        "mcmc.csv"),
-               row.names = FALSE)
-  }
+  names(hedgesg_without_lack)[grepl('ruf', names(hedgesg_without_lack))] <- different_species[different_species == "Lycodon rufozonatus"]
+  reptiles_tree_time_tree$tip.label[grepl('Elaphe tae', reptiles_tree_time_tree$tip.label)] <- different_species_hedgesg[different_species_hedgesg == "Elaphe taeniura"]
+  names(hedgesg_without_lack)[grepl('sinensis', names(hedgesg_without_lack))][1] <- different_species[different_species == "Mauremys sinensis"]
+  names(hedgesg_without_lack)[grepl('piscator', names(hedgesg_without_lack))] <- different_species[different_species == "Fowlea piscator"]
+  names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][1] <- different_species[different_species == "Amalosia lesueurii"]
+  names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][2] <- different_species[different_species == "Intellagama lesueurii"]
+  
+  tree_time_tree_ready <- force.ultrametric(reptiles_tree_time_tree)
+  hedgesg <- hedgesg_without_lack
+} else {
+  message("Error! Chose 'yes' or 'not' ")
 }
 
-#save.image("mcmc.rds")
-#load("mcmc.rds")
-#mcmc_result <- readRDS("rep_4_stat_one_mcmc.RDS")
+for(i in seq_along(seeds)){
+  set.seed(seeds[i])
+  ### MUSSE CALCULATION NCBI ###
+  
+  ### musse ###
+  # 1 musse full #
+  musse_full <- make.musse(tree_time_tree_ready, states = hedgesg, k = 3)
+  init <- starting.point.musse(tree_time_tree_ready, k = 3)
+  result_musse_full <- find.mle(musse_full, x.init = init)
+  round(result_musse_full$par, 9)
+  
+  # 2 musse null #
+  musse_null <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
+                          mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
+                          q23 ~ q12, q31 ~ 0, q32 ~ q12)
+  result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
+  round(result_musse_null$par, 9)
+  
+  # 3 musse lambda #
+  musse_lambda <- constrain(musse_full, mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
+                            q23 ~ q12, q31 ~ 0, q32 ~ q12)
+  result_lambda <- find.mle(musse_lambda, x.init = init[argnames(musse_lambda)])
+  round(result_lambda$par, 9)
+  
+  # 4 musse mu #
+  musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
+                        q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
+  result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
+  round(result_mu$par, 9)
+  
+  # 5 musse ordered #
+  musse_ordered <- constrain(musse_full, q13 ~ 0, q31 ~ 0)
+  result_musse_ordered <- find.mle(musse_ordered, x.init = init[argnames(musse_ordered)])
+  round(result_musse_ordered$par, 9)
+  
+  # anova to see best musse model #
+  anova_result <- anova(result_musse_null,
+                        all.different = result_musse_full,
+                        free.lambda = result_lambda,
+                        free.mu = result_mu)
+  
+  # look results to best model #
+  aicw(setNames(anova_result$AIC, row.names(anova_result)))
+  round(coef(result_musse_full), 9)
+  logLik(result_musse_full)
+  AIC(result_musse_full)
+  round(result_musse_full$par, 9)
+  
+  # percentage to rates #
+  prop_lambda <- round(((result_musse_full$par[1:3]  / max(result_musse_full$par[1:3])) * 100), 3)
+  prop_mu <- round(((result_musse_full$par[4:6]  / max(result_musse_full$par[4:6])) * 100), 3)
+  prop_transi <- round(((result_musse_full$par[7:length(result_musse_full$par)]  / max(result_musse_full$par[7:length(result_musse_full$par)])) * 100), 3)
+  
+  save.image(paste0("output/", "phy_expanded",
+                    "_", phylogeny_expanded,
+                    "stat", "_",states_choice, "_", 
+                    "markov", "_", seeds[i], "_", 
+                    "envi.RDS"))
+  
+  ###### Bayesian MCMC to find posterior density #######
+  prior <- make.prior.exponential(1/2)
+  
+  preliminar <- diversitree::mcmc(musse_full, 
+                                  result_musse_full$par, 
+                                  nsteps=100, prior=prior,
+                                  w=1, print.every = 0)
+  
+  w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
+  
+  mcmc_result <- diversitree::mcmc(musse_full, 
+                                   init[colnames(w)], 
+                                   nsteps=time,prior=prior, 
+                                   w=w, print.every=100)
+  
+  write.csv2(mcmc_result, file=paste0("output/","phy_expanded",
+                                      "_", phylogeny_expanded,
+                                      "stat", "_",
+                                      states_choice, "_",
+                                      "markov", "_",
+                                      seeds[i], "_",
+                                      "mcmc.csv"),
+             row.names = FALSE)
+  #save.image("mcmc.rds")
+}
 
 ########### BMS CALCULATION - TRAIT EVOLUTION ##########
 X_to_BMS <- abs(result_all_species$hedgesg)
@@ -307,9 +326,3 @@ OUM <- OUwie(tree_to_bms$phy,Trait,model=c("OUM"))
 aicc <- c(bms$AICc, OUM$AICc)
 names(aicc) <- c("BMS", "OUM")
 aic.w(aicc)
-
-prior1 <- make.prior(resolved_tree_ncbi)
-bayou.makeMCMC(tree=resolved_tree_ncbi, dat=X_to_BMS,
-               model = "OU", prior=prior1)
-
-model <- rjmcmc.bm(tree_to_bms$phy, dat=X_to_BMS, model="BM")
