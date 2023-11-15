@@ -143,7 +143,6 @@ reptiles_tree_time_tree <- read.newick("data/raw/species.nwk")
 first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
 
-seeds_phylogeny_rep <- c(100, 101, 102)
 seeds <- c(2, 3, 4)
 time <- 100000
 
@@ -191,10 +190,12 @@ hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 
 ### choose phylogeny - expanded or not ###
-phylogeny_expanded <- "yes" # chose yes or not
-if (phylogeny_expanded == "yes"){
+phylogeny_expanded <- "not" # chose yes or not
+seed_phy <- c(100, 101)
+set.seed(seed_phy[1])
+if(phylogeny_expanded == "yes"){
   reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
-  info_fix_poly <- build_info(species, reptiles_tree_time_tree, 
+  info_fix_poly <- build_info(names(hedgesg), reptiles_tree_time_tree, 
                               find.ranks=TRUE, db="ncbi")
   input_fix_poly <- info2input(info_fix_poly, reptiles_tree_time_tree,
                                parallelize=F)
@@ -202,8 +203,10 @@ if (phylogeny_expanded == "yes"){
                                    tree = reptiles_tree_time_tree,
                                    forceultrametric=TRUE,
                                    prune=TRUE)
+  tree_time_tree_ready$tip.label <- gsub("_", " ", tree_time_tree_ready$tip.label)
 } else if (phylogeny_expanded == "not"){
   ### manual corrections in phylogeny to use phylogeny directly ###
+  lack_species <- c("Anepischetosia maccoyi", "Nannoscincus maccoyi")
   reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
   hedgesg_without_lack <- hedgesg[!names(hedgesg) %in% lack_species]
   different_species <- reptiles_tree_time_tree$tip.label[!reptiles_tree_time_tree$tip.label %in% names(hedgesg_without_lack)]
@@ -251,11 +254,6 @@ for(i in seq_along(seeds)){
                         q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
   result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
   round(result_mu$par, 9)
-  
-  # 5 musse ordered #
-  musse_ordered <- constrain(musse_full, q13 ~ 0, q31 ~ 0)
-  result_musse_ordered <- find.mle(musse_ordered, x.init = init[argnames(musse_ordered)])
-  round(result_musse_ordered$par, 9)
   
   # anova to see best musse model #
   anova_result <- anova(result_musse_null,

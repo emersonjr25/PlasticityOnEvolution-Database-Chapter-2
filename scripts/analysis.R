@@ -321,10 +321,10 @@ if(save_result == TRUE){
   dev.off()
 }
 
-#### tree per states ####
+#### tree general ####
 tiff("output/tree_original.jpg",
      width = 800, height = 600, res=100)
-ggtree(reptiles_tree_time_tree) + 
+ggtree(tree_time_tree_ready, aes(hedgesg)) + 
   geom_tiplab(align=TRUE, 
               linesize=.1, size = 2.5) + 
   geom_tree() + theme_tree() + 
@@ -335,14 +335,14 @@ dev.off()
 color.palette = colorRampPalette(c("#ffcd74", "#ff7251", "#9b2948"))
 
 if(save_result == TRUE){
-  tiff(filename = file.path(here('output'), paste0('tree_states', ".tif")),
+  tiff(filename = file.path(here('output'), paste0('tree_states_original', ".tif")),
        #width = 1000,
        width = 800, #without abundance and occupancy
        height = 600,
        #height = 400, #abundance and occupancy
        units = "px",
        res = 100)
-  print(plotBranchbyTrait(resolved_tree_ncbi, 
+  print(plotBranchbyTrait(tree_time_tree_ready, 
                           hedgesg, mode=c("edges"),
                           palette=color.palette,
                           legend=FALSE))
