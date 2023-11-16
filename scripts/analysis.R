@@ -30,50 +30,24 @@ setwd("C:/Users/emers/OneDrive/Documentos/markov_result")
 #######################################################
 ########### phylogeny with 3 cohen ways ###############
 #######################################################
-### state one - 3 rep phy and 3 rep mcmc ###
-# phy seed 1 # 
-cohen_one_phy_one_rep_one <- read.csv2("phy1/state1/markov_2_stat_one_phy_100mcmc.csv")
-cohen_one_phy_one_rep_two <- read.csv2("phy1/state1/markov_3_stat_one_phy_100mcmc.csv")
-cohen_one_phy_one_rep_three <- read.csv2("phy1/state1/markov_4_stat_one_phy_100mcmc.csv")
 
-# phy seed 2 # 
-cohen_one_phy_two_rep_one <- read.csv2("phy1/state1/markov_2_stat_one_phy_101mcmc.csv")
-cohen_one_phy_two_rep_two <- read.csv2("phy1/state1/markov_3_stat_one_phy_101mcmc.csv")
-cohen_one_phy_two_rep_three <- read.csv2("phy1/state1/markov_4_stat_one_phy_101mcmc.csv")
+######## phy without expand ############
+### state one - 3 rep mcmc ###
+phy_without_expand_cohen_one_rep_one <- read.csv2("phy_without_expand/cohen1/rep1/phy_expanded_notstat_one_markov_2_mcmc.csv")
+phy_without_expand_cohen_one_rep_two <- read.csv2("phy_without_expand/cohen1/rep2/phy_expanded_notstat_one_markov_3_mcmc.csv")
+phy_without_expand_cohen_one_rep_three <- read.csv2("phy_without_expand/cohen1/rep3/phy_expanded_notstat_one_markov_4_mcmc.csv")
 
-# phy seed 3 #
-cohen_one_phy_three_rep_one <- read.csv2("phy1/state1/markov_2_stat_one_phy_102mcmc.csv")
-cohen_one_phy_three_rep_two <- read.csv2("phy1/state1/markov_3_stat_one_phy_102mcmc.csv")
-cohen_one_phy_three_rep_three <- read.csv2("phy1/state1/markov_4_stat_one_phy_102mcmc.csv")
+### state two - 3 rep mcmc ###
+phy_without_expand_cohen_two_rep_one <- read.csv2("phy_without_expand/cohen2/rep1/phy_expanded_notstat_two_markov_2_mcmc.csv")
+phy_without_expand_cohen_two_rep_two <- read.csv2("phy_without_expand/cohen2/rep2/phy_expanded_notstat_two_markov_3_mcmc.csv")
+phy_without_expand_cohen_two_rep_three <- read.csv2("phy_without_expand/cohen2/rep3/phy_expanded_notstat_two_markov_4_mcmc.csv")
 
-### state two - 3 rep phy and 3 rep mcmc ###
-# phy seed 1 # 
-cohen_two_phy_one_rep_one <- read.csv2("phy1/state2/markov_2_stat_two_phy_100mcmc.csv")
-cohen_two_phy_one_rep_two <- read.csv2("phy1/state2/markov_3_stat_two_phy_100mcmc.csv")
-cohen_two_phy_one_rep_three <- read.csv2("phy1/state2/markov_4_stat_two_phy_100mcmc.csv")
+### state three - 3 rep mcmc ###
+phy_without_expand_cohen_three_rep_one <- read.csv2("phy_without_expand/cohen3/rep1/phy_expanded_notstat_three_markov_2_mcmc.csv")
+phy_without_expand_cohen_three_rep_two <- read.csv2("phy_without_expand/cohen3/rep2/phy_expanded_notstat_three_markov_3_mcmc.csv")
+phy_without_expand_cohen_three_rep_three <- read.csv2("phy_without_expand/cohen3/rep3/phy_expanded_notstat_three_markov_4_mcmc.csv")
 
-# phy seed 2 # 
-cohen_two_phy_two_rep_one <- read.csv2("phy1/state2/markov_2_stat_two_phy_101mcmc.csv")
-cohen_two_phy_two_rep_two <- read.csv2("phy1/state2/markov_3_stat_two_phy_101mcmc.csv")
-cohen_two_phy_two_rep_three <- read.csv2("phy1/state2/markov_4_stat_two_phy_101mcmc.csv")
-
-# phy seed 3 #
-cohen_two_phy_three_rep_one <- read.csv2("phy1/state2/markov_2_stat_two_phy_102mcmc.csv")
-cohen_two_phy_three_rep_two <- read.csv2("phy1/state2/markov_3_stat_two_phy_102mcmc.csv")
-cohen_two_phy_three_rep_three <- read.csv2("phy1/state2/markov_4_stat_two_phy_102mcmc.csv")
-
-### state three - 3 rep phy and 3 rep mcmc ###
-# phy seed 1 # 
-cohen_three_phy_one_rep_one <- read.csv2("phy1/state3/markov_2_stat_three_phy_100mcmc.csv")
-cohen_three_phy_one_rep_two <- read.csv2("phy1/state3/markov_3_stat_three_phy_100mcmc.csv")
-cohen_three_phy_one_rep_three <- read.csv2("phy1/state3/markov_4_stat_three_phy_100mcmc.csv")
-
-# phy seed 2 # 
-cohen_three_phy_two_rep_one <- read.csv2("phy1/state3/markov_2_stat_three_phy_101mcmc.csv")
-cohen_three_phy_two_rep_two <- read.csv2("phy1/state3/markov_3_stat_three_phy_101mcmc.csv")
-cohen_three_phy_two_rep_three <- read.csv2("phy1/state3/markov_4_stat_three_phy_101mcmc.csv")
-
-state_chosen <- cohen_one_phy_one_rep_one
+state_chosen <- phy_without_expand_cohen_three_rep_three
 
 mcmc_max <- nrow(state_chosen)
 mcmc_out_burn_in <- round(nrow(state_chosen) * 0.2) + 1
@@ -90,70 +64,49 @@ bf_timestep <- function(x, y) mean(x / y)
 mean_posteriors <- colMeans(mcmc_result)[2:ncol(mcmc_result)]
 # lamb 1 x lamb 2 #
 bf_mean(mean_posteriors[1], mean_posteriors[2])
-bf_timestep(mcmc_result[, 2], mcmc_result[, 3])
 # lamb 1 x lamb 3 #
 bf_mean(mean_posteriors[1], mean_posteriors[3])
-bf_timestep(mcmc_result[, 2], mcmc_result[, 4])
 # lamb 2 x lamb 3 #
 bf_mean(mean_posteriors[2], mean_posteriors[3])
-bf_timestep(mcmc_result[, 3], mcmc_result[, 4])
 
 # mu 1 x mu 2 #
 bf_mean(mean_posteriors[4], mean_posteriors[5])
-bf_timestep(mcmc_result[, 5], mcmc_result[, 6])
 # mu 1 x mu 3 #
 bf_mean(mean_posteriors[4], mean_posteriors[6])
-bf_timestep(mcmc_result[, 5], mcmc_result[, 7])
 # mu 2 x mu 3 #
 bf_mean(mean_posteriors[5], mean_posteriors[6])
-bf_timestep(mcmc_result[, 6], mcmc_result[, 7])
 
 # transition #
 # q12 x q13 #
 bf_mean(mean_posteriors[7], mean_posteriors[8])
-bf_timestep(mcmc_result[, 8], mcmc_result[, 9])
 # q12 x q21 #
 bf_mean(mean_posteriors[7], mean_posteriors[9])
-bf_timestep(mcmc_result[, 8], mcmc_result[, 10])
 # q12 x q23 #
 bf_mean(mean_posteriors[7], mean_posteriors[10])
-bf_timestep(mcmc_result[, 8], mcmc_result[, 11])
 # q12 x q31 #
 bf_mean(mean_posteriors[7], mean_posteriors[11])
-bf_timestep(mcmc_result[, 8], mcmc_result[, 12])
 # q12 x q32 #
 bf_mean(mean_posteriors[7], mean_posteriors[12])
-bf_timestep(mcmc_result[, 8], mcmc_result[, 13])
 # q13 x q21 #
 bf_mean(mean_posteriors[8], mean_posteriors[9])
-bf_timestep(mcmc_result[, 9], mcmc_result[, 10])
 # q13 x q23 #
 bf_mean(mean_posteriors[8], mean_posteriors[10])
-bf_timestep(mcmc_result[, 9], mcmc_result[, 11])
 # q13 x q31 #
 bf_mean(mean_posteriors[8], mean_posteriors[11])
-bf_timestep(mcmc_result[, 9], mcmc_result[, 12])
 # q13 x q32 #
 bf_mean(mean_posteriors[8], mean_posteriors[12])
-bf_timestep(mcmc_result[, 9], mcmc_result[, 13])
 # q21 x q23 #
 bf_mean(mean_posteriors[9], mean_posteriors[10])
-bf_timestep(mcmc_result[, 10], mcmc_result[, 11])
 # q21 x q31 #
 bf_mean(mean_posteriors[9], mean_posteriors[11])
-bf_timestep(mcmc_result[, 10], mcmc_result[, 12])
 # q21 x q32 #
 bf_mean(mean_posteriors[9], mean_posteriors[12])
-bf_timestep(mcmc_result[, 10], mcmc_result[, 13])
 # q23 x q31 #
 bf_mean(mean_posteriors[10], mean_posteriors[11])
-bf_timestep(mcmc_result[, 11], mcmc_result[, 12])
 # q23 x q32 #
 bf_mean(mean_posteriors[10], mean_posteriors[12])
-bf_timestep(mcmc_result[, 11], mcmc_result[, 13])
 # q31 x q32 #
 bf_mean(mean_posteriors[11], mean_posteriors[12])
-bf_timestep(mcmc_result[, 12], mcmc_result[, 13])
 
 # speciation, extinction, and diversification #
 # transitions #
