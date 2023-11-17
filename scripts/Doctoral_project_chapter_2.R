@@ -190,7 +190,7 @@ hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 
 ### choose phylogeny - expanded or not ###
-phylogeny_expanded <- "not" # chose yes or not
+phylogeny_expanded <- "yes" # chose yes or not
 seed_phy <- c(100, 101)
 set.seed(seed_phy[1])
 if(phylogeny_expanded == "yes"){
@@ -306,18 +306,19 @@ for(i in seq_along(seeds)){
 }
 
 ########### BMS CALCULATION - TRAIT EVOLUTION ##########
+#load("phy_expanded_yesstat_one_markov_2_envi.RDS")
 X_to_BMS <- abs(result_all_species$hedgesg)
 X_to_BMS <- setNames(X_to_BMS, result_all_species$species_complete)
 Trait <- data.frame(Genus_species = names(hedgesg),
            Reg = as.numeric(hedgesg),
            X = as.numeric(X_to_BMS))
-tree_to_bms <- rayDISC(resolved_tree_ncbi, 
+tree_to_bms <- rayDISC(tree_time_tree_ready, 
                        Trait[,c(1,2)], model="ER",
                        node.states="marginal")
 
-#my_map <- make.simmap(tree_to_bms$phy,hedgesg, model="ER")
-#plot(my_map)
-#plotRECON(tree_to_bms$phy, tree_to_bms$states)
+my_map <- make.simmap(tree_to_bms$phy,hedgesg, model="ER")
+plot(my_map)
+plotRECON(tree_to_bms$phy, tree_to_bms$states)
 
 bms <- OUwie(tree_to_bms$phy,Trait,model=c("BMS"))
 OUM <- OUwie(tree_to_bms$phy,Trait,model=c("OUM"))
