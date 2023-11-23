@@ -106,6 +106,8 @@ bf_mean(mean_posteriors[10], mean_posteriors[12])
 # q31 x q32 #
 bf_mean(mean_posteriors[11], mean_posteriors[12])
 
+mean_posteriors[7:12]
+
 # speciation, extinction, and diversification #
 # transitions #
 transitions <- mcmc_result %>%
@@ -128,6 +130,22 @@ mcmc_result_pivoted <- mcmc_result_pivoted |>
   mutate(Diversification = Speciation,
          DiversificationPosterior = LambdaPosterior - ExtinctionPosterior,
          Diversification = str_replace(Diversification, 'lambda', 'Diversif'))
+
+### bf diversification ###
+bf_diversif <- mcmc_result_pivoted |>
+  select(Diversification, DiversificationPosterior) |>
+  group_by(Diversification) |>
+  mutate(row = row_number()) |>
+  pivot_wider(names_from=Diversification,
+              values_from=DiversificationPosterior) |>
+  select(-row)
+diversification_means <- colMeans(bf_diversif)
+# diversification #
+bf_mean(diversification_means[1], diversification_means[2])
+# mu 1 x mu 3 #
+bf_mean(diversification_means[1], diversification_means[3])
+# mu 2 x mu 3 #
+bf_mean(diversification_means[2], diversification_means[3])
 
 #################### plots ############################
 # temporal series #
