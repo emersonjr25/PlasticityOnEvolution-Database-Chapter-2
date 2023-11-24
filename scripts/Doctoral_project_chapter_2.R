@@ -146,7 +146,7 @@ second_quartile <- round(summary(hedgesg)[3], 2)
 seeds <- c(2, 3, 4)
 time <- 100000
 
-states_choice <- c("one") #can be one, two, or three
+states_choice <- c("two") #can be one, two, or three
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
@@ -312,15 +312,16 @@ X_to_BMS <- setNames(X_to_BMS, result_all_species$species_complete)
 Trait <- data.frame(Genus_species = names(hedgesg),
            Reg = as.numeric(hedgesg),
            X = as.numeric(X_to_BMS))
-tree_to_bms <- rayDISC(tree_time_tree_ready, 
-                       Trait[,c(1,2)], model="ER",
-                       node.states="marginal")
 
-my_map <- make.simmap(tree_to_bms$phy,hedgesg, model="ER")
-plot(my_map)
-plotRECON(tree_to_bms$phy, tree_to_bms$states)
+tree_to_ouwie <- make.simmap(tree_time_tree_ready, hedgesg, model="ER")
+plot(tree_to_ouwie)
 
-bms <- OUwie(tree_to_bms$phy,Trait,model=c("BMS"))
-OUM <- OUwie(tree_to_bms$phy,Trait,model=c("OUM"))
-aicc <- c(bms$AICc, OUM$AICc)
+BM <- OUwie(tree_to_ouwie,Trait,model="BM1", simmap.tree=TRUE)
+OU1 <- OUwie(tree_to_ouwie,Trait,model="OU1", simmap.tree=TRUE)
+bms <- OUwie(tree_to_ouwie,Trait,model="BMS", simmap.tree=TRUE, root.station=FALSE)
+OUM <- OUwie(tree_to_ouwie,Trait,model="OUM", simmap.tree=TRUE)
+OUVM <- OUwie(tree_to_ouwie,Trait,model="OUMV", simmap.tree=TRUE)
+
+aicc <- c(bms$AICc, OUM$AICc, BM$AICc, 
+          OU1$AICc, OUVM$AICc)
 aicw(aicc)

@@ -45,7 +45,7 @@ phy_expanded_cohen_three_rep_one <- read.csv2("phy_expanded/cohen3/rep1/phy_expa
 phy_expanded_cohen_three_rep_two <- read.csv2("phy_expanded/cohen3/rep2/phy_expanded_yesstat_three_markov_3_mcmc.csv")
 phy_expanded_cohen_three_rep_three <- read.csv2("phy_expanded/cohen3/rep3/phy_expanded_yesstat_three_markov_4_mcmc.csv")
 
-state_chosen <- phy_expanded_cohen_one_rep_one
+state_chosen <- phy_expanded_cohen_three_rep_one
 
 mcmc_max <- nrow(state_chosen)
 mcmc_out_burn_in <- round(nrow(state_chosen) * 0.2) + 1
@@ -141,10 +141,11 @@ bf_diversif <- mcmc_result_pivoted |>
   select(-row)
 diversification_means <- colMeans(bf_diversif)
 # diversification #
+# diversi 1 x diversi 2 #
 bf_mean(diversification_means[1], diversification_means[2])
-# mu 1 x mu 3 #
+# diversi 1 x diversi 3 #
 bf_mean(diversification_means[1], diversification_means[3])
-# mu 2 x mu 3 #
+# diversi 2 x diversi 3 #
 bf_mean(diversification_means[2], diversification_means[3])
 
 #################### plots ############################
