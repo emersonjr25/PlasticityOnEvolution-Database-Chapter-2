@@ -146,7 +146,7 @@ second_quartile <- round(summary(hedgesg)[3], 2)
 seeds <- c(2, 3, 4)
 time <- 100000
 
-states_choice <- c("two") #can be one, two, or three
+states_choice <- c("one") #can be one, two, or three
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
@@ -306,7 +306,7 @@ for(i in seq_along(seeds)){
 }
 
 ########### BMS CALCULATION - TRAIT EVOLUTION ##########
-#load("phy_expanded_yesstat_one_markov_2_envi.RDS")
+#load("phy_expanded/cohen3/rep3/phy_expanded_yesstat_three_markov_4_envi.RDS")
 X_to_BMS <- abs(result_all_species$hedgesg)
 X_to_BMS <- setNames(X_to_BMS, result_all_species$species_complete)
 Trait <- data.frame(Genus_species = names(hedgesg),
