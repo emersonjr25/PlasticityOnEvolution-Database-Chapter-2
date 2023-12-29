@@ -1,12 +1,3 @@
-#####################################################
-########### PLASTICITY AND EVOLUTION STUDY ##########
-#####################################################
-### Main goal: Verify the effect of plasticity on adaptive evolution
-##### Diversification and Trait Evolution ~ Plasticity
-##### Methods: Database Developmental plasticity thermal in reptiles 
-##### Script to input data, modify and save plasticity value
-
-### PACKAGES ####
 library(tidyverse)
 library(effectsize)
 library(here)
@@ -54,7 +45,8 @@ for(i in seq_along(uniques)){
 
 subdata <- subdata %>% 
   mutate(id = as.integer(id), 
-         mean = as.double(mean))
+         mean = as.double(mean)) |>
+  filter(simp_trait == "Mass")
 
 ################################################################################
 ### To calculate Hedge's we need a group with studies, species, and traits ####
@@ -62,8 +54,8 @@ subdata <- subdata %>%
 
 ### FUNCTIONS ###
 temp_ampli <- function(x, f){
-   x %>%
-    group_by(id, paper_no, species_complete, simp_trait) %>%
+  x %>%
+    group_by(id, paper_no, species_complete) %>%
     filter(T == f(T)) %>%
     arrange(id)
 }
@@ -72,7 +64,7 @@ mean_calculation <- function(x, f){
   x %>%
     select(-c(T)) %>%
     summarise(mean_variable = f(mean))# %>%
-    #mutate(mean_variable = abs(mean_variable))
+  #mutate(mean_variable = abs(mean_variable))
 }
 
 hed_g <- function(mean1, mean2, sd_p){
@@ -100,12 +92,12 @@ result <- mean_min_values %>%
 for(i in seq_along(unique(max_values$id))){
   amostragem_1 <- min_values[min_values$id == i, ]
   amostragem_2 <- max_values[max_values$id == i, ]
-  result$sd_pool[i] <- sd_pooled(amostragem_1$mean, amostragem_2$mean)
+  result$sd_pool[i] <- sd_pooled(amostragem_1$mean)
 }
 
 result$hedgesg <- mapply(hed_g, mean_min_values$mean_variable, 
-                          mean_max_values$mean_variable,
-                          result$sd_pool)
+                         mean_max_values$mean_variable,
+                         result$sd_pool)
 
 #### CLEAN DATA ####
 min_test_values <- test_equal_temperature(min_values, mean)
@@ -133,7 +125,6 @@ result_all_species <- result %>%
   summarise(hedgesg = mean(hedgesg))
 
 hedgesg <- abs(result_all_species$hedgesg)
-#save.image("table_and_phy_ready.RDS")
 
 #### phylogeny time tree ####
 load("table_and_phy_ready.RDS")
@@ -225,94 +216,89 @@ if(phylogeny_expanded == "yes"){
   message("Error! Chose 'yes' or 'not' ")
 }
 
-for(i in seq_along(seeds)){
-  set.seed(seeds[i])
-  ### MUSSE CALCULATION NCBI ###
+
+
+
+
+### preparation MUSSE ###
+load("table_and_phy_ready.RDS")
+
+trait_frequent <- result %>%
+  group_by(simp_trait) %>%
+  summarise(len = length(simp_trait)) %>%
+  arrange(desc(len))
+
+more_frequent_mass <- trait_frequent[grep("ass",trait_frequent$simp_trait),]
+five_more_frequent_mass <- more_frequent_mass[1:3, 1]
+subdata$units <- dados$units
+subdata_filtered_mass <- subdata[subdata$simp_trait %in% unclass(five_more_frequent_mass)$simp_trait, ]
+subdata_filtered_mass$units <- gsub("\\s", "", subdata_filtered_mass$units)
+subdata_filtered_mass <- subdata_filtered_mass |>
+  filter(units == "g" | units == "mg")
+subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean <- subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean / 1000
+table_bms <- subdata_filtered_mass |> 
+  select(-c(units)) |>
+  group_by(paper_no, species_complete) |>
+  summarise(mean_value_trait = mean(mean)) |>
+  ungroup() |>
+  group_by(species_complete) |>
+  summarise(trait_value = mean(mean_value_trait))
   
-  ### musse ###
-  # 1 musse full #
-  musse_full <- make.musse(tree_time_tree_ready, states = hedgesg, k = 3)
-  init <- starting.point.musse(tree_time_tree_ready, k = 3)
-  result_musse_full <- find.mle(musse_full, x.init = init)
-  round(result_musse_full$par, 9)
-  
-  # 2 musse null #
-  musse_null <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
-                          mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
-                          q23 ~ q12, q31 ~ 0, q32 ~ q12)
-  result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
-  round(result_musse_null$par, 9)
-  
-  # 3 musse lambda #
-  musse_lambda <- constrain(musse_full, mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
-                            q23 ~ q12, q31 ~ 0, q32 ~ q12)
-  result_lambda <- find.mle(musse_lambda, x.init = init[argnames(musse_lambda)])
-  round(result_lambda$par, 9)
-  
-  # 4 musse mu #
-  musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
-                        q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
-  result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
-  round(result_mu$par, 9)
-  
-  # anova to see best musse model #
-  anova_result <- anova(result_musse_null,
-                        all.different = result_musse_full,
-                        free.lambda = result_lambda,
-                        free.mu = result_mu)
-  
-  # look results to best model #
-  aicw(setNames(anova_result$AIC, row.names(anova_result)))
-  round(coef(result_musse_full), 9)
-  logLik(result_musse_full)
-  AIC(result_musse_full)
-  round(result_musse_full$par, 9)
-  
-  # percentage to rates #
-  prop_lambda <- round(((result_musse_full$par[1:3]  / max(result_musse_full$par[1:3])) * 100), 3)
-  prop_mu <- round(((result_musse_full$par[4:6]  / max(result_musse_full$par[4:6])) * 100), 3)
-  prop_transi <- round(((result_musse_full$par[7:length(result_musse_full$par)]  / max(result_musse_full$par[7:length(result_musse_full$par)])) * 100), 3)
-  
-  save.image(paste0("output/", "phy_expanded",
-                    "_", phylogeny_expanded,
-                    "stat", "_",states_choice, "_", 
-                    "markov", "_", seeds[i], "_", 
-                    "envi.RDS"))
-  
-  ###### Bayesian MCMC to find posterior density #######
-  prior <- make.prior.exponential(1/2)
-  
-  preliminar <- diversitree::mcmc(musse_full, 
-                                  result_musse_full$par, 
-                                  nsteps=100, prior=prior,
-                                  w=1, print.every = 0)
-  
-  w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
-  
-  mcmc_result <- diversitree::mcmc(musse_full, 
-                                   init[colnames(w)], 
-                                   nsteps=time,prior=prior, 
-                                   w=w, print.every=100)
-  
-  write.csv2(mcmc_result, file=paste0("output/","phy_expanded",
-                                      "_", phylogeny_expanded,
-                                      "stat", "_",
-                                      states_choice, "_",
-                                      "markov", "_",
-                                      seeds[i], "_",
-                                      "mcmc.csv"),
-             row.names = FALSE)
-  #save.image("mcmc.rds")
+unique(subdata_filtered_mass$species_complete)
+
+result <- result[result$simp_trait %in% unclass(five_more_frequent_mass)$simp_trait, ]
+result$hedgesg <- abs(result$hedgesg)
+
+result_mass <- result %>%
+  group_by(species_complete) %>%
+  summarise(hedgesg = mean(hedgesg))
+
+table_bms <- table_bms[table_bms$species_complete %in% result_mass$species_complete,]
+
+hedgesg_mass <- abs(result_mass$hedgesg)
+states <- function(x){
+  if(x <= 0.2){
+    x <- 1
+  } else if (x > 0.2 & x <= 0.5){
+    x <- 2
+  } else if(x > 0.5){
+    x <- 3
+  }
 }
 
-########### BMS CALCULATION - TRAIT EVOLUTION ##########
-setwd("C:/Users/emers/OneDrive/Documentos/markov_result")
-load("phy_expanded/cohen3/rep1/phy_expanded_yesstat_three_markov_2_envi.RDS")
+hedgesg_mass <- sapply(hedgesg_mass, states)
+hedgesg_mass <- setNames(hedgesg_mass, result_mass$species_complete)
+
+species_mass <- unique(result_mass$species_complete)
+#write(species_mass, file="species_bms.txt")
+reptiles_tree_time_tree <- read.newick("data/raw/species_bms.nwk")
+
+reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
+info_fix_poly <- build_info(names(hedgesg_mass), reptiles_tree_time_tree, 
+                            find.ranks=TRUE, db="ncbi")
+input_fix_poly <- info2input(info_fix_poly, reptiles_tree_time_tree,
+                             parallelize=F)
+tree_time_tree_ready <- rand_tip(input = input_fix_poly, 
+                                 tree = reptiles_tree_time_tree,
+                                 forceultrametric=TRUE,
+                                 prune=TRUE)
+tree_time_tree_ready$tip.label <- gsub("_", " ", tree_time_tree_ready$tip.label)
+
+
+#### musse ####
+musse <- make.musse(tree_time_tree_ready, states = hedgesg_mass, k = 3)
+init <- starting.point.musse(tree_time_tree_ready, k = 3)
+result_musse <- find.mle(musse, x.init = init)
+round(result_musse$par, 7)
+
+
+#setwd("C:/Users/emers/OneDrive/Documentos/markov_result")
+#load("phy_expanded/cohen3/rep1/phy_expanded_yesstat_three_markov_2_envi.RDS")
 X_to_BMS <- abs(result_all_species$hedgesg)
 X_to_BMS <- setNames(X_to_BMS, result_all_species$species_complete)
 Trait <- data.frame(Genus_species = names(hedgesg),
-           Reg = as.numeric(hedgesg),
-           X = as.numeric(X_to_BMS))
+                    Reg = as.numeric(hedgesg),
+                    X = as.numeric(X_to_BMS))
 
 tree_to_ouwie <- make.simmap(tree_time_tree_ready, hedgesg, model="ER")
 plot(tree_to_ouwie)
@@ -326,15 +312,3 @@ OUVM <- OUwie(tree_to_ouwie,Trait,model="OUMV", simmap.tree=TRUE)
 aicc <- c(bms$AICc, OUM$AICc, BM$AICc, 
           OU1$AICc, OUVM$AICc)
 aicw(aicc)
-
-subdata_new <- subdata[subdata$species_complete %in% names(hedgesg_mass), ]
-
-subdata_new |>
-  filter(simp_trait == "Mass") |>
-  group_by(paper_no, species_complete) |>
-  summarise(mean_value_trait = mean(mean)) |>
-  ungroup() |>
-  group_by(species_complete) |>
-  summarise(trait_value = mean(mean_value_trait))
-
-dados$
