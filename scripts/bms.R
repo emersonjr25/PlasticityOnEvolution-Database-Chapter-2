@@ -16,128 +16,56 @@ library(corHMM)
 library(bayou)
 library(ggtree)
 
-### READING DATA ###
-
-dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",") 
-
-#### ENGINEER DATA AND MODELING ####
-
-subdata <- dados %>% 
-  as.tibble() %>%
-  select(paper_no, genus, species, simp_trait, T, mean) %>%
-  mutate(species_complete = paste0(genus," ", species)) %>%
-  group_by(paper_no, species_complete, simp_trait) %>%
-  mutate(id = paste0('ID', paper_no, species_complete, simp_trait)) %>%
-  select(id, paper_no, species_complete, 
-         simp_trait, T, mean)  %>%
-  mutate(species_complete = str_squish(species_complete))
-
-uniques <- subdata %>%
-  ungroup() %>%
-  select(id) %>%
-  unique() %>%
-  unlist()
-
-for(i in seq_along(uniques)){
-  temporary <- subdata$id == uniques[[i]]
-  subdata$id[temporary] <- i
-}
-
-subdata <- subdata %>% 
-  mutate(id = as.integer(id), 
-         mean = as.double(mean)) |>
-  filter(simp_trait == "Mass")
-
-################################################################################
-### To calculate Hedge's we need a group with studies, species, and traits ####
-################################################################################
-
-### FUNCTIONS ###
-temp_ampli <- function(x, f){
-  x %>%
-    group_by(id, paper_no, species_complete) %>%
-    filter(T == f(T)) %>%
-    arrange(id)
-}
-
-mean_calculation <- function(x, f){
-  x %>%
-    select(-c(T)) %>%
-    summarise(mean_variable = f(mean))# %>%
-  #mutate(mean_variable = abs(mean_variable))
-}
-
-hed_g <- function(mean1, mean2, sd_p){
-  round(((mean(mean1) - mean(mean2)) / sd_p), 3)
-}
-
-test_equal_temperature <- function(x, f){
-  x %>%
-    select(-c(mean)) %>%
-    summarise(temperature = f(T))
-}
-
-#### RESULTS: TEMP, MEAN, SD POOL, AND HEDGEs G (PLASTICITY) ####
-
-min_values <- temp_ampli(subdata, min)
-max_values <- temp_ampli(subdata, max)
-
-mean_min_values <- mean_calculation(min_values, mean)
-mean_max_values <- mean_calculation(max_values, mean)
-
-result <- mean_min_values %>%
-  select(-c(mean_variable)) %>%
-  mutate(sd_pool = NA)
-
-for(i in seq_along(unique(max_values$id))){
-  amostragem_1 <- min_values[min_values$id == i, ]
-  amostragem_2 <- max_values[max_values$id == i, ]
-  result$sd_pool[i] <- sd_pooled(amostragem_1$mean)
-}
-
-result$hedgesg <- mapply(hed_g, mean_min_values$mean_variable, 
-                         mean_max_values$mean_variable,
-                         result$sd_pool)
-
-#### CLEAN DATA ####
-min_test_values <- test_equal_temperature(min_values, mean)
-max_test_values <- test_equal_temperature(max_values, mean)
-
-is_equal <- function(x, y) x == y
-result_equal <- mapply(is_equal, min_test_values$temperature, max_test_values$temperature)
-
-result <- result[-c(which(result_equal)), ]
-
-result <- result %>% 
-  filter(!is.nan(hedgesg), !is.na(hedgesg), !is.infinite(hedgesg)) %>%
-  select(-sd_pool)
-
-papers_to_revise <- sample(unique(result$paper_no), 8)
-sort(papers_to_revise)
-
-################################################################################
-##### MUSSE TO ALL TRAITS - NCBI Database ################################
-################################################################################
-
-#### Preparation to MUSSE ####
-result_all_species <- result %>% 
-  group_by(species_complete) %>%
-  summarise(hedgesg = mean(hedgesg))
-
-hedgesg <- abs(result_all_species$hedgesg)
-
-#### phylogeny time tree ####
+### carrying all data ###
 load("table_and_phy_ready.RDS")
-reptiles_tree_time_tree <- read.newick("data/raw/species.nwk")
+
+trait_frequent <- result %>%
+  group_by(simp_trait) %>%
+  summarise(len = length(simp_trait)) %>%
+  arrange(desc(len))
+
+more_frequent_mass <- trait_frequent[grep("ass",trait_frequent$simp_trait),]
+five_more_frequent_mass <- more_frequent_mass[1:3, 1]
+subdata$units <- dados$units
+subdata_filtered_mass <- subdata[subdata$simp_trait %in% unclass(five_more_frequent_mass)$simp_trait, ]
+subdata_filtered_mass$units <- gsub("\\s", "", subdata_filtered_mass$units)
+subdata_filtered_mass <- subdata_filtered_mass |>
+  filter(units == "g" | units == "mg")
+subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean <- subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean / 1000
+table_bms <- subdata_filtered_mass |> 
+  select(-c(units)) |>
+  group_by(paper_no, species_complete) |>
+  summarise(mean_value_trait = mean(mean)) |>
+  ungroup() |>
+  group_by(species_complete) |>
+  summarise(trait_value = mean(mean_value_trait))
+  
+unique(subdata_filtered_mass$species_complete)
+
+result <- result[result$simp_trait %in% unclass(five_more_frequent_mass)$simp_trait, ]
+#result$hedgesg <- abs(result$hedgesg)
+
+#result_mass <- result %>%
+##  group_by(species_complete) %>%
+#  summarise(hedgesg = mean(hedgesg))
+
+result_mass <- result %>% 
+   group_by(species_complete) %>%
+   summarise(hedgesg = mean(hedgesg))
+ 
+result_mass$hedgesg <- abs(result_mass$hedgesg)
+
+table_bms <- table_bms[table_bms$species_complete %in% result_mass$species_complete,]
+
+hedgesg_mass <- abs(result_mass$hedgesg)
 
 ### STATES ###
 first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
 
 seeds <- c(2, 3, 4)
-time <- 100000
 
-states_choice <- c("one") #can be one, two, or three
+states_choice <- c("three") #can be one, two, or three
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
@@ -177,105 +105,15 @@ if(states_choice == "one"){
   message("Error! Chose 'one', 'two', or 'three")
 }
 
-hedgesg <- sapply(hedgesg, states)
-hedgesg <- setNames(hedgesg, result_all_species$species_complete)
-
-### choose phylogeny - expanded or not ###
-phylogeny_expanded <- "yes" # chose yes or not
-seed_phy <- c(100, 101)
-set.seed(seed_phy[1])
-if(phylogeny_expanded == "yes"){
-  reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
-  info_fix_poly <- build_info(names(hedgesg), reptiles_tree_time_tree, 
-                              find.ranks=TRUE, db="ncbi")
-  input_fix_poly <- info2input(info_fix_poly, reptiles_tree_time_tree,
-                               parallelize=F)
-  tree_time_tree_ready <- rand_tip(input = input_fix_poly, 
-                                   tree = reptiles_tree_time_tree,
-                                   forceultrametric=TRUE,
-                                   prune=TRUE)
-  tree_time_tree_ready$tip.label <- gsub("_", " ", tree_time_tree_ready$tip.label)
-} else if (phylogeny_expanded == "not"){
-  ### manual corrections in phylogeny to use phylogeny directly ###
-  lack_species <- c("Anepischetosia maccoyi", "Nannoscincus maccoyi")
-  reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
-  hedgesg_without_lack <- hedgesg[!names(hedgesg) %in% lack_species]
-  different_species <- reptiles_tree_time_tree$tip.label[!reptiles_tree_time_tree$tip.label %in% names(hedgesg_without_lack)]
-  different_species_hedgesg <- names(hedgesg_without_lack)[!names(hedgesg_without_lack) %in%  reptiles_tree_time_tree$tip.label]
-  
-  names(hedgesg_without_lack)[grepl('ruf', names(hedgesg_without_lack))] <- different_species[different_species == "Lycodon rufozonatus"]
-  reptiles_tree_time_tree$tip.label[grepl('Elaphe tae', reptiles_tree_time_tree$tip.label)] <- different_species_hedgesg[different_species_hedgesg == "Elaphe taeniura"]
-  names(hedgesg_without_lack)[grepl('sinensis', names(hedgesg_without_lack))][1] <- different_species[different_species == "Mauremys sinensis"]
-  names(hedgesg_without_lack)[grepl('piscator', names(hedgesg_without_lack))] <- different_species[different_species == "Fowlea piscator"]
-  names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][1] <- different_species[different_species == "Amalosia lesueurii"]
-  names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][2] <- different_species[different_species == "Intellagama lesueurii"]
-  
-  tree_time_tree_ready <- force.ultrametric(reptiles_tree_time_tree)
-  hedgesg <- hedgesg_without_lack
-} else {
-  message("Error! Chose 'yes' or 'not' ")
-}
-
-
-
-
-
-load("table_and_phy_ready.RDS")
-
-trait_frequent <- result %>%
-  group_by(simp_trait) %>%
-  summarise(len = length(simp_trait)) %>%
-  arrange(desc(len))
-
-more_frequent_mass <- trait_frequent[grep("ass",trait_frequent$simp_trait),]
-five_more_frequent_mass <- more_frequent_mass[1:3, 1]
-subdata$units <- dados$units
-subdata_filtered_mass <- subdata[subdata$simp_trait %in% unclass(five_more_frequent_mass)$simp_trait, ]
-subdata_filtered_mass$units <- gsub("\\s", "", subdata_filtered_mass$units)
-subdata_filtered_mass <- subdata_filtered_mass |>
-  filter(units == "g" | units == "mg")
-subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean <- subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean / 1000
-table_bms <- subdata_filtered_mass |> 
-  select(-c(units)) |>
-  group_by(paper_no, species_complete) |>
-  summarise(mean_value_trait = mean(mean)) |>
-  ungroup() |>
-  group_by(species_complete) |>
-  summarise(trait_value = mean(mean_value_trait))
-  
-unique(subdata_filtered_mass$species_complete)
-
-result <- result[result$simp_trait %in% unclass(five_more_frequent_mass)$simp_trait, ]
-result$hedgesg <- abs(result$hedgesg)
-
-result_mass <- result %>%
-  group_by(species_complete) %>%
-  summarise(hedgesg = mean(hedgesg))
-
-
-table_bms <- table_bms[table_bms$species_complete %in% result_mass$species_complete,]
-
-hedgesg_mass <- abs(result_mass$hedgesg)
-states <- function(x){
-  if(x <= 0.2){
-    x <- 1
-  } else if (x > 0.2 & x <= 0.5){
-    x <- 2
-  } else if(x > 0.5){
-    x <- 3
-  }
-}
-
 hedgesg_mass <- sapply(hedgesg_mass, states)
 hedgesg_mass <- setNames(hedgesg_mass, result_mass$species_complete)
 
 species_mass <- unique(result_mass$species_complete)
-#write(species_mass, file="species_bms.txt")
+### phylogeny ###
 reptiles_tree_time_tree <- read.newick("data/raw/species_bms.nwk")
-reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
-reptiles_tree_time_tree$tip.label[reptiles_tree_time_tree$tip.label %in% names(hedgesg_mass)]
-reptiles_tree_time_tree$tip.label[names(hedgesg_mass) %in% reptiles_tree_time_tree$tip.label]
 
+seed_phy <- c(100, 101)
+set.seed(seed_phy[1])
 info_fix_poly <- build_info(names(hedgesg_mass), reptiles_tree_time_tree, 
                             find.ranks=TRUE, db="ncbi")
 input_fix_poly <- info2input(info_fix_poly, reptiles_tree_time_tree,
@@ -285,15 +123,9 @@ tree_time_tree_ready <- rand_tip(input = input_fix_poly,
                                  forceultrametric=TRUE,
                                  prune=TRUE)
 tree_time_tree_ready$tip.label <- gsub("_", " ", tree_time_tree_ready$tip.label)
-tree_time_tree_ready <- force.ultrametric(tree_time_tree_ready, method="nnls")
-
-#### musse ####
-musse <- make.musse(tree_time_tree_ready, states = hedgesg_mass, k = 3)
-init <- starting.point.musse(tree_time_tree_ready, k = 3)
-result_musse <- find.mle(musse, x.init = init)
-round(result_musse$par, 7)
 
 
+#hedgesg_mass <- as.factor(hedgesg_mass)
 X_to_BMS <- abs(table_bms$trait_value)
 X_to_BMS <- setNames(X_to_BMS, table_bms$species_complete)
 Trait <- data.frame(Genus_species = names(hedgesg_mass),
