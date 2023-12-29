@@ -220,7 +220,6 @@ if(phylogeny_expanded == "yes"){
 
 
 
-### preparation MUSSE ###
 load("table_and_phy_ready.RDS")
 
 trait_frequent <- result %>%
@@ -253,6 +252,7 @@ result_mass <- result %>%
   group_by(species_complete) %>%
   summarise(hedgesg = mean(hedgesg))
 
+
 table_bms <- table_bms[table_bms$species_complete %in% result_mass$species_complete,]
 
 hedgesg_mass <- abs(result_mass$hedgesg)
@@ -272,8 +272,10 @@ hedgesg_mass <- setNames(hedgesg_mass, result_mass$species_complete)
 species_mass <- unique(result_mass$species_complete)
 #write(species_mass, file="species_bms.txt")
 reptiles_tree_time_tree <- read.newick("data/raw/species_bms.nwk")
-
 reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
+reptiles_tree_time_tree$tip.label[reptiles_tree_time_tree$tip.label %in% names(hedgesg_mass)]
+reptiles_tree_time_tree$tip.label[names(hedgesg_mass) %in% reptiles_tree_time_tree$tip.label]
+
 info_fix_poly <- build_info(names(hedgesg_mass), reptiles_tree_time_tree, 
                             find.ranks=TRUE, db="ncbi")
 input_fix_poly <- info2input(info_fix_poly, reptiles_tree_time_tree,
@@ -283,7 +285,7 @@ tree_time_tree_ready <- rand_tip(input = input_fix_poly,
                                  forceultrametric=TRUE,
                                  prune=TRUE)
 tree_time_tree_ready$tip.label <- gsub("_", " ", tree_time_tree_ready$tip.label)
-
+tree_time_tree_ready <- force.ultrametric(tree_time_tree_ready, method="nnls")
 
 #### musse ####
 musse <- make.musse(tree_time_tree_ready, states = hedgesg_mass, k = 3)
@@ -292,15 +294,13 @@ result_musse <- find.mle(musse, x.init = init)
 round(result_musse$par, 7)
 
 
-#setwd("C:/Users/emers/OneDrive/Documentos/markov_result")
-#load("phy_expanded/cohen3/rep1/phy_expanded_yesstat_three_markov_2_envi.RDS")
-X_to_BMS <- abs(result_all_species$hedgesg)
-X_to_BMS <- setNames(X_to_BMS, result_all_species$species_complete)
-Trait <- data.frame(Genus_species = names(hedgesg),
-                    Reg = as.numeric(hedgesg),
+X_to_BMS <- abs(table_bms$trait_value)
+X_to_BMS <- setNames(X_to_BMS, table_bms$species_complete)
+Trait <- data.frame(Genus_species = names(hedgesg_mass),
+                    Reg = as.numeric(hedgesg_mass),
                     X = as.numeric(X_to_BMS))
 
-tree_to_ouwie <- make.simmap(tree_time_tree_ready, hedgesg, model="ER")
+tree_to_ouwie <- make.simmap(tree_time_tree_ready, hedgesg_mass, model="ER")
 plot(tree_to_ouwie)
 
 BM <- OUwie(tree_to_ouwie,Trait,model="BM1", simmap.tree=TRUE)
