@@ -1,4 +1,3 @@
-Alligator mississippiensis
 Amphibolurus muricatus
 Anepischetosia maccoyi
 Anolis carolinensis
@@ -15,8 +14,6 @@ Chelonia mydas
 Chelydra serpentina
 Chrysemys picta
 Cyclura nubila
-Deinagkistrodon acutus
-Dinodon rufozonatum
 Elaphe carinata
 Elseya albagula
 Emydura macquarii
@@ -41,7 +38,6 @@ Phrynocephalus frontalis
 Phrynocephalus przewalskii
 Phrynocephalus versicolor
 Plestiodon chinensis
-Plestiodon elegans
 Podarcis muralis
 Psammodromus algirus
 Pseudemys nelsoni

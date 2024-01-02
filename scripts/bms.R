@@ -19,19 +19,25 @@ library(ggtree)
 ### carrying all data ###
 load("table_and_phy_ready.RDS")
 
+### verifying more frequent trait ###
 trait_frequent <- result %>%
   group_by(simp_trait) %>%
   summarise(len = length(simp_trait)) %>%
   arrange(desc(len))
 
+# selecting data to more frequent trait - mass #
 more_frequent_mass <- trait_frequent[grep("ass",trait_frequent$simp_trait),]
-five_more_frequent_mass <- more_frequent_mass[1:3, 1]
+five_more_frequent_mass <- more_frequent_mass[1, 1]
 subdata$units <- dados$units
 subdata_filtered_mass <- subdata[subdata$simp_trait %in% unclass(five_more_frequent_mass)$simp_trait, ]
+
+# filter and transform data to mass #
 subdata_filtered_mass$units <- gsub("\\s", "", subdata_filtered_mass$units)
 subdata_filtered_mass <- subdata_filtered_mass |>
   filter(units == "g" | units == "mg")
 subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean <- subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean / 1000
+
+# mass per species #
 table_bms <- subdata_filtered_mass |> 
   select(-c(units)) |>
   group_by(paper_no, species_complete) |>
@@ -43,19 +49,22 @@ table_bms <- subdata_filtered_mass |>
 unique(subdata_filtered_mass$species_complete)
 
 result <- result[result$simp_trait %in% unclass(five_more_frequent_mass)$simp_trait, ]
-#result$hedgesg <- abs(result$hedgesg)
 
+#result$hedgesg <- abs(result$hedgesg)
 #result_mass <- result %>%
 ##  group_by(species_complete) %>%
 #  summarise(hedgesg = mean(hedgesg))
 
+# hedges g to bms #
 result_mass <- result %>% 
    group_by(species_complete) %>%
    summarise(hedgesg = mean(hedgesg))
  
 result_mass$hedgesg <- abs(result_mass$hedgesg)
 
+### putting only species mass that is present in hedgesg table #
 table_bms <- table_bms[table_bms$species_complete %in% result_mass$species_complete,]
+table_bms$trait_value <- round(table_bms$trait_value, 3)
 
 hedgesg_mass <- abs(result_mass$hedgesg)
 
@@ -108,8 +117,21 @@ if(states_choice == "one"){
 hedgesg_mass <- sapply(hedgesg_mass, states)
 hedgesg_mass <- setNames(hedgesg_mass, result_mass$species_complete)
 
+### removing species with big mass (outlier) from tables ###
+species_outlier <- table_bms |> 
+  arrange(desc(trait_value)) |>
+  select(species_complete) |>
+  slice(1)
+species_outlier <- unclass(species_outlier)$species_complete
+
+hedgesg_mass <- hedgesg_mass[names(hedgesg_mass) != species_outlier]
+table_bms <- table_bms[table_bms$species_complete != species_outlier, ]
+result_mass <- result_mass[result_mass$species_complete != species_outlier, ]
+
 species_mass <- unique(result_mass$species_complete)
-### phylogeny ###
+
+### reading and correcting phylogeny ###
+#write(species_mass, "species_bms.txt")
 reptiles_tree_time_tree <- read.newick("data/raw/species_bms.nwk")
 
 seed_phy <- c(100, 101)
@@ -124,8 +146,12 @@ tree_time_tree_ready <- rand_tip(input = input_fix_poly,
                                  prune=TRUE)
 tree_time_tree_ready$tip.label <- gsub("_", " ", tree_time_tree_ready$tip.label)
 
+### seeing distribuition of the data ###
+boxplot(table_bms$trait_value)
+boxplot(result_mass$hedgesg)
 
-#hedgesg_mass <- as.factor(hedgesg_mass)
+### Preparing table data to BMS ###
+hedgesg_mass <- as.factor(hedgesg_mass)
 X_to_BMS <- abs(table_bms$trait_value)
 X_to_BMS <- setNames(X_to_BMS, table_bms$species_complete)
 Trait <- data.frame(Genus_species = names(hedgesg_mass),
@@ -135,6 +161,7 @@ Trait <- data.frame(Genus_species = names(hedgesg_mass),
 tree_to_ouwie <- make.simmap(tree_time_tree_ready, hedgesg_mass, model="ER")
 plot(tree_to_ouwie)
 
+# BMS #
 BM <- OUwie(tree_to_ouwie,Trait,model="BM1", simmap.tree=TRUE)
 OU1 <- OUwie(tree_to_ouwie,Trait,model="OU1", simmap.tree=TRUE)
 bms <- OUwie(tree_to_ouwie,Trait,model="BMS", simmap.tree=TRUE, root.station=FALSE)

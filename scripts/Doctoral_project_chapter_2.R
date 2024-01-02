@@ -326,15 +326,3 @@ OUVM <- OUwie(tree_to_ouwie,Trait,model="OUMV", simmap.tree=TRUE)
 aicc <- c(bms$AICc, OUM$AICc, BM$AICc, 
           OU1$AICc, OUVM$AICc)
 aicw(aicc)
-
-subdata_new <- subdata[subdata$species_complete %in% names(hedgesg_mass), ]
-
-subdata_new |>
-  filter(simp_trait == "Mass") |>
-  group_by(paper_no, species_complete) |>
-  summarise(mean_value_trait = mean(mean)) |>
-  ungroup() |>
-  group_by(species_complete) |>
-  summarise(trait_value = mean(mean_value_trait))
-
-dados$
