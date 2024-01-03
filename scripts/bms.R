@@ -52,7 +52,7 @@ result <- result[result$simp_trait %in% unclass(five_more_frequent_mass)$simp_tr
 
 #result$hedgesg <- abs(result$hedgesg)
 #result_mass <- result %>%
-##  group_by(species_complete) %>%
+#  group_by(species_complete) %>%
 #  summarise(hedgesg = mean(hedgesg))
 
 # hedges g to bms #
@@ -151,6 +151,7 @@ boxplot(table_bms$trait_value)
 boxplot(result_mass$hedgesg)
 
 ### Preparing table data to BMS ###
+set.seed(seeds[3])
 hedgesg_mass <- as.factor(hedgesg_mass)
 X_to_BMS <- abs(table_bms$trait_value)
 X_to_BMS <- setNames(X_to_BMS, table_bms$species_complete)

@@ -304,25 +304,3 @@ for(i in seq_along(seeds)){
              row.names = FALSE)
   #save.image("mcmc.rds")
 }
-
-########### BMS CALCULATION - TRAIT EVOLUTION ##########
-setwd("C:/Users/emers/OneDrive/Documentos/markov_result")
-load("phy_expanded/cohen3/rep1/phy_expanded_yesstat_three_markov_2_envi.RDS")
-X_to_BMS <- abs(result_all_species$hedgesg)
-X_to_BMS <- setNames(X_to_BMS, result_all_species$species_complete)
-Trait <- data.frame(Genus_species = names(hedgesg),
-           Reg = as.numeric(hedgesg),
-           X = as.numeric(X_to_BMS))
-
-tree_to_ouwie <- make.simmap(tree_time_tree_ready, hedgesg, model="ER")
-plot(tree_to_ouwie)
-
-BM <- OUwie(tree_to_ouwie,Trait,model="BM1", simmap.tree=TRUE)
-OU1 <- OUwie(tree_to_ouwie,Trait,model="OU1", simmap.tree=TRUE)
-bms <- OUwie(tree_to_ouwie,Trait,model="BMS", simmap.tree=TRUE, root.station=FALSE)
-OUM <- OUwie(tree_to_ouwie,Trait,model="OUM", simmap.tree=TRUE)
-OUVM <- OUwie(tree_to_ouwie,Trait,model="OUMV", simmap.tree=TRUE)
-
-aicc <- c(bms$AICc, OUM$AICc, BM$AICc, 
-          OU1$AICc, OUVM$AICc)
-aicw(aicc)
