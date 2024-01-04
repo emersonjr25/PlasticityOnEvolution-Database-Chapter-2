@@ -66,7 +66,7 @@ second_quartile <- round(summary(hedgesg)[3], 2)
 
 seeds <- c(2, 3, 4)
 
-states_choice <- c("three") #can be one, two, or three
+states_choice <- c("one") #can be one, two, or three
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
@@ -143,7 +143,7 @@ boxplot(table_bms$trait_value)
 boxplot(result_mass$hedgesg)
 
 ### Preparing table data to BMS ###
-set.seed(seeds[1])
+set.seed(seeds[3])
 hedgesg_mass <- as.factor(hedgesg_mass)
 X_to_BMS <- abs(table_bms$trait_value)
 X_to_BMS <- setNames(X_to_BMS, table_bms$species_complete)
