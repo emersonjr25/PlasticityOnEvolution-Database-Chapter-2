@@ -48,13 +48,6 @@ table_bms <- subdata_filtered_mass |>
   
 unique(subdata_filtered_mass$species_complete)
 
-result <- result[result$simp_trait %in% unclass(five_more_frequent_mass)$simp_trait, ]
-
-#result$hedgesg <- abs(result$hedgesg)
-#result_mass <- result %>%
-#  group_by(species_complete) %>%
-#  summarise(hedgesg = mean(hedgesg))
-
 # hedges g to bms #
 result_mass <- result %>% 
    group_by(species_complete) %>%
@@ -64,8 +57,8 @@ result_mass$hedgesg <- abs(result_mass$hedgesg)
 
 ### putting only species mass that is present in hedgesg table #
 table_bms <- table_bms[table_bms$species_complete %in% result_mass$species_complete,]
+result_mass <- result_mass[result_mass$species_complete %in% table_bms$species_complete,]
 table_bms$trait_value <- round(table_bms$trait_value, 3)
-
 hedgesg_mass <- abs(result_mass$hedgesg)
 
 ### STATES ###
@@ -131,8 +124,8 @@ result_mass <- result_mass[result_mass$species_complete != species_outlier, ]
 species_mass <- unique(result_mass$species_complete)
 
 ### reading and correcting phylogeny ###
-#write(species_mass, "species_bms.txt")
-reptiles_tree_time_tree <- read.newick("data/raw/species_bms.nwk")
+#write(species_mass, "species_bms_general.txt")
+reptiles_tree_time_tree <- read.newick("data/raw/species_bms_general.nwk")
 
 seed_phy <- c(100, 101)
 set.seed(seed_phy[1])
@@ -151,7 +144,7 @@ boxplot(table_bms$trait_value)
 boxplot(result_mass$hedgesg)
 
 ### Preparing table data to BMS ###
-set.seed(seeds[3])
+set.seed(seeds[1])
 hedgesg_mass <- as.factor(hedgesg_mass)
 X_to_BMS <- abs(table_bms$trait_value)
 X_to_BMS <- setNames(X_to_BMS, table_bms$species_complete)
