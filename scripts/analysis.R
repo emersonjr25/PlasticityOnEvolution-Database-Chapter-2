@@ -23,29 +23,20 @@ library(corHMM)
 library(bayou)
 library(ggtree)
 
-### reading data ###
-setwd("C:/Users/emers/OneDrive/Documentos/markov_result")
-#load("mcmc.rds")
-
 #######################################################
 ########### phylogeny with 3 cohen ways ###############
 #######################################################
 ### state one - 3 rep mcmc ###
-phy_expanded_cohen_one_rep_one <- read.csv2("phy_expanded/cohen1/rep1/phy_expanded_yesstat_one_markov_2_mcmc.csv")
-phy_expanded_cohen_one_rep_two <- read.csv2("phy_expanded/cohen1/rep2/phy_expanded_yesstat_one_markov_3_mcmc.csv")
-phy_expanded_cohen_one_rep_three <- read.csv2("phy_expanded/cohen1/rep3/phy_expanded_yesstat_one_markov_4_mcmc.csv")
-
-### state two - 3 rep mcmc ###
-phy_expanded_cohen_two_rep_one <- read.csv2("phy_expanded/cohen2/rep1/phy_expanded_yesstat_two_markov_2_mcmc.csv")
-phy_expanded_cohen_two_rep_two <- read.csv2("phy_expanded/cohen2/rep2/phy_expanded_yesstat_two_markov_3_mcmc.csv")
-phy_expanded_cohen_two_rep_three <- read.csv2("phy_expanded/cohen2/rep3/phy_expanded_yesstat_two_markov_4_mcmc.csv")
+#phy_expanded_cohen_one_rep_one <- read.csv2("output/phy_expanded_yesstat_one_markov_2_mcmc.csv")
+phy_expanded_cohen_one_rep_two <- read.csv2("output/phy_expanded_yesstat_one_markov_3_mcmc.csv")
+#phy_expanded_cohen_one_rep_three <- read.csv2("output/phy_expanded_yesstat_one_markov_4_mcmc.csv")
 
 ### state three - 3 rep mcmc ###
-phy_expanded_cohen_three_rep_one <- read.csv2("phy_expanded/cohen3/rep1/phy_expanded_yesstat_three_markov_2_mcmc.csv")
-phy_expanded_cohen_three_rep_two <- read.csv2("phy_expanded/cohen3/rep2/phy_expanded_yesstat_three_markov_3_mcmc.csv")
-phy_expanded_cohen_three_rep_three <- read.csv2("phy_expanded/cohen3/rep3/phy_expanded_yesstat_three_markov_4_mcmc.csv")
+phy_expanded_cohen_three_rep_one <- read.csv2("output/phy_expanded_yesstat_three_markov_2_mcmc.csv")
+#phy_expanded_cohen_three_rep_two <- read.csv2("phy_expanded/cohen3/rep2/phy_expanded_yesstat_three_markov_3_mcmc.csv")
+#phy_expanded_cohen_three_rep_three <- read.csv2("phy_expanded/cohen3/rep3/phy_expanded_yesstat_three_markov_4_mcmc.csv")
 
-state_chosen <- phy_expanded_cohen_three_rep_one
+state_chosen <- phy_expanded_cohen_one_rep_one
 
 mcmc_max <- nrow(state_chosen)
 mcmc_out_burn_in <- round(nrow(state_chosen) * 0.2) + 1
@@ -60,6 +51,7 @@ n.eff(as.matrix(state_chosen[, 8:13]))
 bf_mean <- function(x, y) x / y
 bf_timestep <- function(x, y) mean(x / y)
 mean_posteriors <- colMeans(mcmc_result)[2:ncol(mcmc_result)]
+round(mean_posteriors, 5)
 # lamb 1 x lamb 2 #
 bf_mean(mean_posteriors[1], mean_posteriors[2])
 # lamb 1 x lamb 3 #
@@ -325,3 +317,8 @@ ggplot(table_histogram, aes(x = hedgesg)) +
   geom_bar() +
   scale_x_continuous(breaks = 1:16) +
   labs(x="Hedge's g effect", y= "Frequency")
+
+### carrying envi to musse results ###
+#load("output/phy_expanded_yesstat_one_markov_2_envi.RDS")
+aicw(setNames(anova_result$AIC, row.names(anova_result)))
+round(coef(result_musse_full), 9)
