@@ -27,7 +27,7 @@ library(ggtree)
 ########### phylogeny with 3 cohen ways ###############
 #######################################################
 ### state one - 3 rep mcmc ###
-phy_expanded_cohen_one_rep_one <- read.csv2("output/phy_expanded_yesstat_one_markov_2_mcmc.csv")
+phy_expanded_cohen_one_rep_one <- read.csv2("output/markov_files/cohen 1/rep1/phy_expanded_yesstat_one_markov_2_mcmc.csv")
 #phy_expanded_cohen_one_rep_two <- read.csv2("output/phy_expanded_yesstat_one_markov_3_mcmc.csv")
 #phy_expanded_cohen_one_rep_three <- read.csv2("output/phy_expanded_yesstat_one_markov_4_mcmc.csv")
 
@@ -186,11 +186,12 @@ if(save_result == TRUE){
 # transitions #
 transitions <- ggplot(transitions, aes(value, fill = name)) +
   geom_density(alpha=0.7) +
+  scale_x_log10() +
   theme_bw() +
   scale_fill_hue(name="States") +
-  theme(legend.position = c(0.8, 0.75),
-        axis.title.x = element_text(size = 14), 
-        axis.title.y = element_text(size = 14)) +
+  theme(legend.position = c(0.1, 0.7),
+        axis.title.x = element_text(size = 16), 
+        axis.title.y = element_text(size = 16)) +
   xlab("Transition") + ylab('Posterior Density') 
 
 if(save_result == TRUE){
@@ -209,14 +210,15 @@ if(save_result == TRUE){
 speciation <- mcmc_result_pivoted %>% 
   ggplot(aes(LambdaPosterior, fill = Speciation)) + 
   geom_density(alpha=0.7) +
+  scale_x_log10() +
   theme_bw() +
   scale_fill_hue(labels = c("Low Plasticity (1)", 
                             "Medium Plasticity (2)", 
                             "High Plasticity (3)"),
                  name="States") +
-  theme(legend.position = c(0.8, 0.8),
-        axis.title.x = element_text(size = 14), 
-        axis.title.y = element_text(size = 14)) +
+  theme(legend.position = c(0.2, 0.75),
+        axis.title.x = element_text(size = 16), 
+        axis.title.y = element_text(size = 16)) +
   xlab("Speciation") + ylab('Posterior Density') 
 
 if(save_result == TRUE){
@@ -235,14 +237,15 @@ if(save_result == TRUE){
 extinction <- mcmc_result_pivoted %>% 
   ggplot(aes(ExtinctionPosterior, fill = Extinction)) + 
   geom_density(alpha=0.7) +
+  scale_x_log10() +
   theme_bw() +
   scale_fill_hue(labels = c("Low Plasticity (1)", 
                             "Medium Plasticity (2)", 
                             "High Plasticity (3)"),
                  name="States") +
-  theme(legend.position = c(0.8, 0.8),
-        axis.title.x = element_text(size = 14), 
-        axis.title.y = element_text(size = 14)) +
+  theme(legend.position = c(0.2, 0.75),
+        axis.title.x = element_text(size = 16), 
+        axis.title.y = element_text(size = 16)) +
   xlab("Extinction") + ylab('Posterior Density') 
 
 if(save_result == TRUE){
@@ -261,14 +264,15 @@ if(save_result == TRUE){
 diversification <- mcmc_result_pivoted %>% 
   ggplot(aes(DiversificationPosterior, fill = Diversification)) + 
   geom_density(alpha=0.7) +
+  scale_x_log10() +
   theme_bw() +
   scale_fill_hue(labels = c("Low Plasticity (1)", 
                             "Medium Plasticity (2)", 
                             "High Plasticity (3)"),
                  name="States") +
-  theme(legend.position = c(0.8, 0.8),
-        axis.title.x = element_text(size = 14), 
-        axis.title.y = element_text(size = 14)) +
+  theme(legend.position = c(0.2, 0.75),
+        axis.title.x = element_text(size = 16), 
+        axis.title.y = element_text(size = 16)) +
   xlab("Diversification") + ylab('Posterior Density') 
 
 if(save_result == TRUE){
