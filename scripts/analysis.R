@@ -187,9 +187,10 @@ if(save_result == TRUE){
 transitions <- ggplot(transitions, aes(value, fill = name)) +
   geom_density(alpha=0.7) +
   scale_x_log10() +
+  scale_x_sqrt() +
   theme_bw() +
   scale_fill_hue(name="States") +
-  theme(legend.position = c(0.1, 0.7),
+  theme(legend.position = c(0.9, 0.7),
         axis.title.x = element_text(size = 16), 
         axis.title.y = element_text(size = 16)) +
   xlab("Transition") + ylab('Posterior Density') 
@@ -211,12 +212,13 @@ speciation <- mcmc_result_pivoted %>%
   ggplot(aes(LambdaPosterior, fill = Speciation)) + 
   geom_density(alpha=0.7) +
   scale_x_log10() +
+  scale_x_sqrt() +
   theme_bw() +
   scale_fill_hue(labels = c("Low Plasticity (1)", 
                             "Medium Plasticity (2)", 
                             "High Plasticity (3)"),
                  name="States") +
-  theme(legend.position = c(0.2, 0.75),
+  theme(legend.position = c(0.8, 0.75),
         axis.title.x = element_text(size = 16), 
         axis.title.y = element_text(size = 16)) +
   xlab("Speciation") + ylab('Posterior Density') 
@@ -238,12 +240,13 @@ extinction <- mcmc_result_pivoted %>%
   ggplot(aes(ExtinctionPosterior, fill = Extinction)) + 
   geom_density(alpha=0.7) +
   scale_x_log10() +
+  scale_x_sqrt() +
   theme_bw() +
   scale_fill_hue(labels = c("Low Plasticity (1)", 
                             "Medium Plasticity (2)", 
                             "High Plasticity (3)"),
                  name="States") +
-  theme(legend.position = c(0.2, 0.75),
+  theme(legend.position = c(0.8, 0.75),
         axis.title.x = element_text(size = 16), 
         axis.title.y = element_text(size = 16)) +
   xlab("Extinction") + ylab('Posterior Density') 
@@ -265,12 +268,13 @@ diversification <- mcmc_result_pivoted %>%
   ggplot(aes(DiversificationPosterior, fill = Diversification)) + 
   geom_density(alpha=0.7) +
   scale_x_log10() +
+  scale_x_sqrt() +
   theme_bw() +
   scale_fill_hue(labels = c("Low Plasticity (1)", 
                             "Medium Plasticity (2)", 
                             "High Plasticity (3)"),
                  name="States") +
-  theme(legend.position = c(0.2, 0.75),
+  theme(legend.position = c(0.8, 0.75),
         axis.title.x = element_text(size = 16), 
         axis.title.y = element_text(size = 16)) +
   xlab("Diversification") + ylab('Posterior Density') 
@@ -293,8 +297,8 @@ aicw(setNames(anova_result$AIC, row.names(anova_result)))
 round(coef(result_musse_full), 9)
 
 #### tree general ####
-tiff("output/tree_original.jpg",
-     width = 800, height = 600, res=100)
+tiff("output/tree_original.tif",
+     width = 800, height = 800, res=100)
 ggtree(tree_time_tree_ready, aes(hedgesg)) + 
   geom_tiplab(align=TRUE, 
               linesize=.1, size = 2.5) + 
