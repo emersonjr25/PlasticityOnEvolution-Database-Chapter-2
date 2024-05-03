@@ -81,29 +81,110 @@ if(phylogeny_expanded == "yes"){
   message("Error! Chose 'yes' or 'not' ")
 }
 
-### quasse ###
-lambda <- function(x) sigmoid.x(x, 0.1, 0.2, 0, 2.5)
-mu <- function(x) constant.x(x, 0.03)
-char <- make.brownian.with.drift(0, 0.025)
-set.seed(1)
-phy <- tree.quasse(c(lambda, mu, char), max.taxa=15, x0=0,
-                   single.lineage=FALSE, verbose=TRUE)
-nodes <- c("nd13", "nd9", "nd5")
-split.t <- Inf
-pars <- c(.1, .2, 0, 2.5, .03, 0, .01)
-pars4 <- unlist(rep(list(pars), 4))
-sd <- 1/200
-control.C.1 <- list(dt.max=1/200)
-## Not run:
-control.R.1 <- list(dt.max=1/200, method="fftR")
-control <- list(parscale = 0.1, reltol = 0.001)
-lik.C.1 <- make.quasse(phy, phy$tip.state, sd, sigmoid.x, constant.x, control.C.1)
-init <- starting.point.quasse(phy, phy$tip.state, states.sd=NULL)
-result_quasse <- find.mle(lik.C.1, x.init = init)
+data(whales, package = "geiger")
+w.phy <- whales$phy
+ltt.w <- ltt(w.phy,log.lineages=F)
+t = max(branching.times(w.phy))
+#Quantidade de linhagens de baleia no tempo inicial ("stem age"; n0):
+n0 = 1
+#Quantidade atual de linhagens de baleia (nt):
+nt = 84
+#Funcão exponencial para estimar diversificacão (l1 [lambda]; observe que nós logaritmizamos a funcão e isolamos o parâmetro lambda):
+l1 = (log(nt) - log(n0))/t
+l2 = seq(0.01,0.25,0.002)
+#Função para gerar a verossimilhança para cada valor de lambda:
+lik <- (((2.72^(l2*t))-1)^(nt-1)) / ((2.72^(l2*t))^(nt))
+f.lamb1 <- function(t, y){y[1]}#especiacão
+f.mu1 <- function(t, y){0}#extincão
+#Determinando os valores iniciais dos parâmetros para facilitar a busca de máxima verossimilhança:
+lamb_par1 <- c(0.09)#especiacão
+mu_par1 <- c()#extincão
+resu1 = fit_bd(phylo = w.phy, tot_time = t, f.lamb1, f.mu1, lamb_par1, mu_par1)
+resu1$lamb_par#Lambda de máxima veroximilhanca
+f.lamb2 <- function(t, y){y[1]}
+f.mu2 <- function(t, y){y[1]}
+#Determinando os valores iniciais dos parâmetros para facilitar a busca de máxima verossimilhanca:
+lamb_par2 <- c(0.09)
+mu_par2 <- c(0.005)
+resu2 <- fit_bd(phylo = w.phy, tot_time = t, f.lamb2, f.mu2, lamb_par2, mu_par2)
+resu2$lamb_par#Lambda
+resu2$mu_par#Mu
 
-quasse <- make.quasse(tree_time_tree_ready, hedgesg, sd, sigmoid.x, constant.x, control.C.1)
-init <- starting.point.quasse(tree_time_tree_ready, hedgesg)
-result_quasse <- find.mle(quasse, x.init = init, lower = 0, control = control, verbose = 0)
+cont.tr <- whales$dat[,1]
+#Como algumas espécies não possuem valores de tamanho corporal, nós geramos valores de forma arbitrária. 
+#Identificando quais espécies na filogenia não possuem o atributo
+mis.names <- w.phy$tip.label[which(!(w.phy$tip.label%in%rownames(cont.tr)))]
+#Identificando a média da distribuição de tamanho corporal
+mean.val <- mean(cont.tr)
+#Amostrando os valores a partir de uma distribuição normal
+mis.val <- rnorm(length(which(!(w.phy$tip.label%in%rownames(cont.tr)))), mean = mean.val )
+#Atribuindo os valores amostrados para as espécies
+names(mis.val) <- mis.names
+#Concatenando todas as espécies
+cont.tr2 <- c(cont.tr,mis.val)
+#Binarizando a variável de tamanho corporal para "grande" (estado 1) e "pequeno" (estado 0):
+bin.tr <- ifelse(cont.tr2 < mean.val, 0, 1)
+#Determinado os valores iniciais dos parâmetros para facilitar a busca de máxima verossimilhanca:
+pars <- c(0.1, 0.2, 0.03, 0.03, 0.01, 0.01)
+#Gerando a função de máxima verossimilhanca
+llik.fun <- make.bisse(tree = w.phy, states = bin.tr)
+#Fazendo a busca de máxima verossimilhanca:
+resu3 <- find.mle(llik.fun, pars, method = "subplex")
+resu3$par
+
+data(whales, package = "BAMMtools")
+phy <- whales
+
+#plotTree(phy, ftype = "i")
+#dat <- read.delim("./Whales/traits/whalesize/whale_size.txt", row.names = 1)
+dat <- whales$dat
+size <- setNames(dat[,1], rownames(dat))
+plot(mcmcout$logLik ~ mcmcout$generation, pch = 19)
+burnstart <- floor(0.1 * nrow(mcmcout))
+postburn <- mcmcout[burnstart:nrow(mcmcout), ]
+
+#Para assumir que convergiram, é necessário no mínimo 200 (para os parâmetros, não o tempo de geração)
+conver <- sapply(postburn, effectiveSize)
+bamm.whales <- plot.bammdata(ed, lwd = 2, method = "phylogram", labels = TRUE, cex = 0.5);
+y <- addBAMMshifts(ed, cex = 2);
+addBAMMlegend(bamm.whales, direction = "vertical", location = "right", nTicks = 4, side = 2, las = 1, cex.axis = 1);
+axisPhylo(side = 1, backward = T,  las = 1, cex = 1.5);
+mtext("Millions of years before present", side = 1, line = 2.5, cex = 1.5)
+plotRateThroughTime(ed, intervalCol = "red", avgCol = "red", ylim = c(0, 1), cex.axis = 1.5, ratetype = "speciation");
+text(x = 30, y = 0.8, label = "All whales", font = 4, cex = 2.0, pos = 4)
+tip.whales <- getTipRates(ed)
+# Agora, explore as taxas de especiação
+hist(tip.whales$lambda.avg, xlab = "Average lambda", main = NULL)
+dolphins <- subtreeBAMM(ed, node = 141)
+tip.dolphins <- getTipRates(dolphins)
+# Explore as taxas de especiação dos golfinhos
+hist(tip.dolphins$lambda.avg, xlab = "Average lambda", main = NULL)
+#VocÊ pode também explorar os plots prévios de diversificação ao longo do tempo
+# Pegue as taxas por clado para todas as baleias
+rates.whales <- getCladeRates(ed)
+# Calcule as taxas para as baleias:
+# Diversificação
+cat("whales rate: mean", mean(rates.whales$lambda-rates.whales$mu),"sd", sd(rates.whales$lambda-rates.whales$mu))
+# Especiação
+cat("lamda: mean", mean(rates.whales$lambda), "sd", sd(rates.whales$lambda))
+# Extinção
+cat("mu: mean", mean(rates.whales$mu),"sd", sd(rates.whales$mu))
+# Ou, apenas plote as taxas 
+hist(rates.whales$lambda-rates.whales$mu, main = NULL, xlab = "Diversification rate")
+abline(v = mean(rates.whales$lambda-rates.whales$mu), col = "red", lwd = 2)
+
+library(geiger);
+library(phytools);
+library(phyloTop)
+library(TreeSim);
+library(ape);
+library(diversitree)
+library(apTreeshape); 
+library(RPANDA)
+
+
+
+library(BAMMtools)
 library(hisse)
 ### muhisse ###
 pars <- c(.1, .15, .2, .1, # lambda 1, 2, 3, 4
@@ -210,9 +291,54 @@ print(trans.rate)
 ## Three hidden states
 turnover <- c(rep(1,4), rep(2,4), rep(3,4))
 extinction.fraction <- rep(1, 12)
-trans.rate <- TransMatMakerMuHiSSE(hidden.traits=2, make.null=TRUE)
 
+states_choice <- c("one") #can be one, two, or three
+if(states_choice == "one"){
+  # states first way - around 0.2, 0.5, 0.8 #
+  states <- function(x){
+    if(x <= 0.35){
+      x <- 1
+    } else if (x > 0.35 & x <= 0.65){
+      x <- 2
+    } else if(x > 0.65){
+      x <- 3
+    }
+  }
+} else if(states_choice == "two"){
+  # states second way - using 3 quartiles #
+  states <- function(x){
+    if(x <= first_quartile){
+      x <- 1
+    } else if (x > first_quartile & x <= second_quartile){
+      x <- 2
+    } else if(x > second_quartile){
+      x <- 3
+    }
+  }
+} else if(states_choice == "three"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.2){
+      x <- 1
+    } else if (x > 0.2 & x <= 0.5){
+      x <- 2
+    } else if(x > 0.5){
+      x <- 3
+    }
+  }
+} else {
+  message("Error! Chose 'one', 'two', or 'three")
+}
 
+hedgesg <- sapply(hedgesg, states)
+hedgesg <- setNames(hedgesg, result_all_species$species_complete)
+
+trans.rates.hisse <- TransMatMakerHiSSE(hidden.traits=0)
+hisse(tree_time_tree_ready, hedgesg, hidden.states=TRUE, turnover=c(1,2,1,2),
+      eps=c(1,2,1,2), trans.rate=trans.rates.hisse)
+hisse(tree_time_tree_ready, hedgesg)
 for(i in seq_along(seeds)){
   set.seed(seeds[i])
   ### MUSSE CALCULATION NCBI ###
