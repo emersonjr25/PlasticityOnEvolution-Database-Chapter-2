@@ -75,12 +75,15 @@ if(phylogeny_expanded == "yes"){
   names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][1] <- different_species[different_species == "Amalosia lesueurii"]
   names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][2] <- different_species[different_species == "Intellagama lesueurii"]
   
-  tree_time_tree_ready <- force.ultrametric(reptiles_tree_time_tree)
+ # tree_time_tree_ready <- force.ultrametric(reptiles_tree_time_tree)
   hedgesg <- hedgesg_without_lack
 } else {
   message("Error! Chose 'yes' or 'not' ")
 }
-
+library(dispRity)
+is.ultrametric(tree_time_tree_ready)
+tree_time_tree_ready <- dispRity::remove.zero.brlen(tree_time_tree_ready)
+write.tree(tree_time_tree_ready, "fil.tre")
 data(whales, package = "geiger")
 w.phy <- whales$phy
 ltt.w <- ltt(w.phy,log.lineages=F)
@@ -133,10 +136,33 @@ resu3 <- find.mle(llik.fun, pars, method = "subplex")
 resu3$par
 
 data(whales, package = "BAMMtools")
-phy <- whales
+data(whales, events.whales)
+edata_whales <- getEventData(whales, events.whales, burnin=0.1)
+
+plot.bammdata(edata_whales, lwd=3, method="polar", pal="temperature")
+data(primates, events.primates)
+ed <- getEventData(primates, events.primates, burnin=0.25, type = 'trait')
+
+par(mfrow=c(1,3), mar=c(1, 0.5, 0.5, 0.5), xpd=TRUE)
+
+q <- plot.bammdata(ed, tau=0.001, breaksmethod='linear', lwd=2)
+addBAMMshifts(ed, par.reset=FALSE, cex=2)
+title(sub='linear',cex.sub=2, line=-1)
+addBAMMlegend(q, location=c(0, 1, 140, 220))
+
+q <- plot.bammdata(ed, tau=0.001, breaksmethod='linear', color.interval=c(NA,0.12), lwd=2)
+addBAMMshifts(ed, par.reset=FALSE, cex=2)
+title(sub='linear - color.interval',cex.sub=2, line=-1)
+addBAMMlegend(q, location=c(0, 1, 140, 220))
+
+q <- plot.bammdata(ed, tau=0.001, breaksmethod='jenks', lwd=2)
+addBAMMshifts(ed, par.reset=FALSE, cex=2)
+title(sub='jenks',cex.sub=2, line=-1)
+addBAMMlegend(q, location=c(0, 1, 140, 220))
+
+phy <- whales$phy
 
 #plotTree(phy, ftype = "i")
-#dat <- read.delim("./Whales/traits/whalesize/whale_size.txt", row.names = 1)
 dat <- whales$dat
 size <- setNames(dat[,1], rownames(dat))
 plot(mcmcout$logLik ~ mcmcout$generation, pch = 19)
