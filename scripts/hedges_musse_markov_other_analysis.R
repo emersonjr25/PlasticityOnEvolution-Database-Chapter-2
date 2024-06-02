@@ -24,6 +24,8 @@ library(OUwie)
 library(corHMM)
 library(bayou)
 library(ggtree)
+library(dispRity)
+library(BAMMtools)
 
 ### READING DATA ###
 
@@ -80,10 +82,55 @@ if(phylogeny_expanded == "yes"){
 } else {
   message("Error! Chose 'yes' or 'not' ")
 }
-library(dispRity)
-is.ultrametric(tree_time_tree_ready)
+
+### BAMM ###
 tree_time_tree_ready <- dispRity::remove.zero.brlen(tree_time_tree_ready)
-write.tree(tree_time_tree_ready, "fil.tre")
+#write.tree(tree_time_tree_ready, "fil.tre")
+mcmcout <- read.table("mcmc_out.txt", sep=',', header = T)
+event_data <- read.table("event_data.txt", sep=',', header = T)
+
+plot(mcmcout$logLik ~ mcmcout$generation, pch = 19)
+burnstart <- floor(0.1 * nrow(mcmcout))
+postburn <- mcmcout[burnstart:nrow(mcmcout), ]
+conver <- sapply(postburn, effectiveSize)
+
+results <- BAMMtools::getEventData(tree_time_tree_ready, event_data, burnin=0.25, nsamples=500)
+
+### with whales ###
+data(whales, events.whales)
+ed <- getEventData(whales, events.whales, burnin=0.25, nsamples=500)
+
+bamm.whales <- plot.bammdata(ed, lwd = 2, method = "phylogram", labels = TRUE, cex = 0.5);
+y <- addBAMMshifts(ed, cex = 2);
+addBAMMlegend(bamm.whales, direction = "vertical", location = "right", nTicks = 4, side = 2, las = 1, cex.axis = 1);
+axisPhylo(side = 1, backward = T,  las = 1, cex = 1.5);
+mtext("Millions of years before present", side = 1, line = 2.5, cex = 1.5)
+plotRateThroughTime(ed, intervalCol = "red", avgCol = "red", ylim = c(0, 1), cex.axis = 1.5, ratetype = "speciation");
+text(x = 30, y = 0.8, label = "All whales", font = 4, cex = 2.0, pos = 4)
+
+tip.whales <- getTipRates(ed)
+# Agora, explore as taxas de especiação
+hist(tip.whales$lambda.avg, xlab = "Average lambda", main = NULL)
+dolphins <- subtreeBAMM(ed, node = 141)
+tip.dolphins <- getTipRates(dolphins)
+# Explore as taxas de especiação dos golfinhos
+hist(tip.dolphins$lambda.avg, xlab = "Average lambda", main = NULL)
+#VocÊ pode também explorar os plots prévios de diversificação ao longo do tem
+# Pegue as taxas por clado para todas as baleias
+rates.whales <- getCladeRates(ed)
+# Calcule as taxas para as baleias:
+# Diversificação
+cat("whales rate: mean", mean(rates.whales$lambda-rates.whales$mu),"sd", sd(rates.whales$lambda-rates.whales$mu))
+# Especiação
+cat("lamda: mean", mean(rates.whales$lambda), "sd", sd(rates.whales$lambda))
+# Extinção
+cat("mu: mean", mean(rates.whales$mu),"sd", sd(rates.whales$mu))
+# Ou, apenas plote as taxas 
+hist(rates.whales$lambda-rates.whales$mu, main = NULL, xlab = "Diversification rate")
+abline(v = mean(rates.whales$lambda-rates.whales$mu), col = "red", lwd = 2)
+
+
+####
 data(whales, package = "geiger")
 w.phy <- whales$phy
 ltt.w <- ltt(w.phy,log.lineages=F)
@@ -135,69 +182,6 @@ llik.fun <- make.bisse(tree = w.phy, states = bin.tr)
 resu3 <- find.mle(llik.fun, pars, method = "subplex")
 resu3$par
 
-data(whales, package = "BAMMtools")
-data(whales, events.whales)
-edata_whales <- getEventData(whales, events.whales, burnin=0.1)
-
-plot.bammdata(edata_whales, lwd=3, method="polar", pal="temperature")
-data(primates, events.primates)
-ed <- getEventData(primates, events.primates, burnin=0.25, type = 'trait')
-
-par(mfrow=c(1,3), mar=c(1, 0.5, 0.5, 0.5), xpd=TRUE)
-
-q <- plot.bammdata(ed, tau=0.001, breaksmethod='linear', lwd=2)
-addBAMMshifts(ed, par.reset=FALSE, cex=2)
-title(sub='linear',cex.sub=2, line=-1)
-addBAMMlegend(q, location=c(0, 1, 140, 220))
-
-q <- plot.bammdata(ed, tau=0.001, breaksmethod='linear', color.interval=c(NA,0.12), lwd=2)
-addBAMMshifts(ed, par.reset=FALSE, cex=2)
-title(sub='linear - color.interval',cex.sub=2, line=-1)
-addBAMMlegend(q, location=c(0, 1, 140, 220))
-
-q <- plot.bammdata(ed, tau=0.001, breaksmethod='jenks', lwd=2)
-addBAMMshifts(ed, par.reset=FALSE, cex=2)
-title(sub='jenks',cex.sub=2, line=-1)
-addBAMMlegend(q, location=c(0, 1, 140, 220))
-
-phy <- whales$phy
-
-#plotTree(phy, ftype = "i")
-dat <- whales$dat
-size <- setNames(dat[,1], rownames(dat))
-plot(mcmcout$logLik ~ mcmcout$generation, pch = 19)
-burnstart <- floor(0.1 * nrow(mcmcout))
-postburn <- mcmcout[burnstart:nrow(mcmcout), ]
-
-#Para assumir que convergiram, é necessário no mínimo 200 (para os parâmetros, não o tempo de geração)
-conver <- sapply(postburn, effectiveSize)
-bamm.whales <- plot.bammdata(ed, lwd = 2, method = "phylogram", labels = TRUE, cex = 0.5);
-y <- addBAMMshifts(ed, cex = 2);
-addBAMMlegend(bamm.whales, direction = "vertical", location = "right", nTicks = 4, side = 2, las = 1, cex.axis = 1);
-axisPhylo(side = 1, backward = T,  las = 1, cex = 1.5);
-mtext("Millions of years before present", side = 1, line = 2.5, cex = 1.5)
-plotRateThroughTime(ed, intervalCol = "red", avgCol = "red", ylim = c(0, 1), cex.axis = 1.5, ratetype = "speciation");
-text(x = 30, y = 0.8, label = "All whales", font = 4, cex = 2.0, pos = 4)
-tip.whales <- getTipRates(ed)
-# Agora, explore as taxas de especiação
-hist(tip.whales$lambda.avg, xlab = "Average lambda", main = NULL)
-dolphins <- subtreeBAMM(ed, node = 141)
-tip.dolphins <- getTipRates(dolphins)
-# Explore as taxas de especiação dos golfinhos
-hist(tip.dolphins$lambda.avg, xlab = "Average lambda", main = NULL)
-#VocÊ pode também explorar os plots prévios de diversificação ao longo do tempo
-# Pegue as taxas por clado para todas as baleias
-rates.whales <- getCladeRates(ed)
-# Calcule as taxas para as baleias:
-# Diversificação
-cat("whales rate: mean", mean(rates.whales$lambda-rates.whales$mu),"sd", sd(rates.whales$lambda-rates.whales$mu))
-# Especiação
-cat("lamda: mean", mean(rates.whales$lambda), "sd", sd(rates.whales$lambda))
-# Extinção
-cat("mu: mean", mean(rates.whales$mu),"sd", sd(rates.whales$mu))
-# Ou, apenas plote as taxas 
-hist(rates.whales$lambda-rates.whales$mu, main = NULL, xlab = "Diversification rate")
-abline(v = mean(rates.whales$lambda-rates.whales$mu), col = "red", lwd = 2)
 
 library(geiger);
 library(phytools);
@@ -207,9 +191,6 @@ library(ape);
 library(diversitree)
 library(apTreeshape); 
 library(RPANDA)
-
-
-
 library(BAMMtools)
 library(hisse)
 ### muhisse ###
