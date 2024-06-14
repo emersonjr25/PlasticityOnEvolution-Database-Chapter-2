@@ -94,41 +94,20 @@ burnstart <- floor(0.1 * nrow(mcmcout))
 postburn <- mcmcout[burnstart:nrow(mcmcout), ]
 conver <- sapply(postburn, effectiveSize)
 
+tree_time_tree_ready$tip.label <- gsub(" ", "_", tree_time_tree_ready$tip.label)
+
 results <- BAMMtools::getEventData(tree_time_tree_ready, event_data, burnin=0.25, nsamples=500)
 
-### with whales ###
-data(whales, events.whales)
-ed <- getEventData(whales, events.whales, burnin=0.25, nsamples=500)
-
-bamm.whales <- plot.bammdata(ed, lwd = 2, method = "phylogram", labels = TRUE, cex = 0.5);
-y <- addBAMMshifts(ed, cex = 2);
-addBAMMlegend(bamm.whales, direction = "vertical", location = "right", nTicks = 4, side = 2, las = 1, cex.axis = 1);
-axisPhylo(side = 1, backward = T,  las = 1, cex = 1.5);
-mtext("Millions of years before present", side = 1, line = 2.5, cex = 1.5)
-plotRateThroughTime(ed, intervalCol = "red", avgCol = "red", ylim = c(0, 1), cex.axis = 1.5, ratetype = "speciation");
-text(x = 30, y = 0.8, label = "All whales", font = 4, cex = 2.0, pos = 4)
-
-tip.whales <- getTipRates(ed)
-# Agora, explore as taxas de especiação
-hist(tip.whales$lambda.avg, xlab = "Average lambda", main = NULL)
-dolphins <- subtreeBAMM(ed, node = 141)
-tip.dolphins <- getTipRates(dolphins)
-# Explore as taxas de especiação dos golfinhos
-hist(tip.dolphins$lambda.avg, xlab = "Average lambda", main = NULL)
-#VocÊ pode também explorar os plots prévios de diversificação ao longo do tem
-# Pegue as taxas por clado para todas as baleias
-rates.whales <- getCladeRates(ed)
-# Calcule as taxas para as baleias:
-# Diversificação
-cat("whales rate: mean", mean(rates.whales$lambda-rates.whales$mu),"sd", sd(rates.whales$lambda-rates.whales$mu))
-# Especiação
-cat("lamda: mean", mean(rates.whales$lambda), "sd", sd(rates.whales$lambda))
-# Extinção
-cat("mu: mean", mean(rates.whales$mu),"sd", sd(rates.whales$mu))
-# Ou, apenas plote as taxas 
-hist(rates.whales$lambda-rates.whales$mu, main = NULL, xlab = "Diversification rate")
-abline(v = mean(rates.whales$lambda-rates.whales$mu), col = "red", lwd = 2)
-
+plotRateThroughTime(results)
+tip <- getTipRates(results)
+hist(tip$lambda.avg, xlab = "Average lambda", main = NULL)
+rates <- getCladeRates(results)
+cat("whales rate: mean", mean(rates$lambda-rates.whales$mu),"sd", sd(rates.whales$lambda-rates.whales$mu))
+cat("lamda: mean", mean(rates$lambda), "sd", sd(rates.whales$lambda))
+cat("mu: mean", mean(rates$mu),"sd", sd(rates.whales$mu))
+hist(rates$lambda-rates.whales$mu, main = NULL, xlab = "Diversification rate")
+abline(v = mean(rates$lambda-rates.whales$mu), col = "red", lwd = 2)
+marg_probs <- marginalShiftProbsTree(results)
 
 ####
 data(whales, package = "geiger")
