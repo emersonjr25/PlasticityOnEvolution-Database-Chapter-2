@@ -109,58 +109,110 @@ hist(rates$lambda-rates.whales$mu, main = NULL, xlab = "Diversification rate")
 abline(v = mean(rates$lambda-rates.whales$mu), col = "red", lwd = 2)
 marg_probs <- marginalShiftProbsTree(results)
 
-####
-data(whales, package = "geiger")
-w.phy <- whales$phy
-ltt.w <- ltt(w.phy,log.lineages=F)
-t = max(branching.times(w.phy))
-#Quantidade de linhagens de baleia no tempo inicial ("stem age"; n0):
-n0 = 1
-#Quantidade atual de linhagens de baleia (nt):
-nt = 84
-#Funcão exponencial para estimar diversificacão (l1 [lambda]; observe que nós logaritmizamos a funcão e isolamos o parâmetro lambda):
-l1 = (log(nt) - log(n0))/t
-l2 = seq(0.01,0.25,0.002)
-#Função para gerar a verossimilhança para cada valor de lambda:
-lik <- (((2.72^(l2*t))-1)^(nt-1)) / ((2.72^(l2*t))^(nt))
-f.lamb1 <- function(t, y){y[1]}#especiacão
-f.mu1 <- function(t, y){0}#extincão
-#Determinando os valores iniciais dos parâmetros para facilitar a busca de máxima verossimilhança:
-lamb_par1 <- c(0.09)#especiacão
-mu_par1 <- c()#extincão
-resu1 = fit_bd(phylo = w.phy, tot_time = t, f.lamb1, f.mu1, lamb_par1, mu_par1)
-resu1$lamb_par#Lambda de máxima veroximilhanca
-f.lamb2 <- function(t, y){y[1]}
-f.mu2 <- function(t, y){y[1]}
-#Determinando os valores iniciais dos parâmetros para facilitar a busca de máxima verossimilhanca:
-lamb_par2 <- c(0.09)
-mu_par2 <- c(0.005)
-resu2 <- fit_bd(phylo = w.phy, tot_time = t, f.lamb2, f.mu2, lamb_par2, mu_par2)
-resu2$lamb_par#Lambda
-resu2$mu_par#Mu
+#### bisse e hisse ####
+load("table_and_phy_ready.RDS")
 
-cont.tr <- whales$dat[,1]
-#Como algumas espécies não possuem valores de tamanho corporal, nós geramos valores de forma arbitrária. 
-#Identificando quais espécies na filogenia não possuem o atributo
-mis.names <- w.phy$tip.label[which(!(w.phy$tip.label%in%rownames(cont.tr)))]
-#Identificando a média da distribuição de tamanho corporal
-mean.val <- mean(cont.tr)
-#Amostrando os valores a partir de uma distribuição normal
-mis.val <- rnorm(length(which(!(w.phy$tip.label%in%rownames(cont.tr)))), mean = mean.val )
-#Atribuindo os valores amostrados para as espécies
-names(mis.val) <- mis.names
-#Concatenando todas as espécies
-cont.tr2 <- c(cont.tr,mis.val)
-#Binarizando a variável de tamanho corporal para "grande" (estado 1) e "pequeno" (estado 0):
-bin.tr <- ifelse(cont.tr2 < mean.val, 0, 1)
-#Determinado os valores iniciais dos parâmetros para facilitar a busca de máxima verossimilhanca:
-pars <- c(0.1, 0.2, 0.03, 0.03, 0.01, 0.01)
-#Gerando a função de máxima verossimilhanca
-llik.fun <- make.bisse(tree = w.phy, states = bin.tr)
-#Fazendo a busca de máxima verossimilhanca:
-resu3 <- find.mle(llik.fun, pars, method = "subplex")
-resu3$par
+result$hedgesg <- abs(result$hedgesg)
+result_all_species <- result %>%
+  group_by(species_complete) %>%
+  summarise(hedgesg = mean(hedgesg))
+hedgesg <- abs(result_all_species$hedgesg)
 
+reptiles_tree_time_tree <- read.newick("data/raw/species.nwk")
+
+### STATES ###
+first_quartile <- round(summary(hedgesg)[2], 2)
+second_quartile <- round(summary(hedgesg)[3], 2)
+
+seeds <- c(2, 3, 4)
+time <- 100000
+
+states_choice <- c("one") #can be one, two, or three
+if(states_choice == "one"){
+  # states first way - around 0.2, 0.5, 0.8 #
+  states <- function(x){
+    if(x <= 0.35){
+      x <- 0
+    } else if (x > 0.35){
+      x <- 1
+    } 
+  }
+} else if(states_choice == "two"){
+  # states second way - using 3 quartiles #
+  states <- function(x){
+    if(x <= first_quartile){
+      x <- 1
+    } else if (x > first_quartile & x <= second_quartile){
+      x <- 2
+    } else if(x > second_quartile){
+      x <- 3
+    }
+  }
+} else if(states_choice == "three"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.5){
+      x <- 0
+    }  else if(x > 0.5){
+      x <- 1
+    }
+  }
+} else {
+  message("Error! Chose 'one', 'two', or 'three")
+}
+
+hedgesg <- sapply(hedgesg, states)
+hedgesg <- setNames(hedgesg, result_all_species$species_complete)
+
+### choose phylogeny - expanded or not ###
+phylogeny_expanded <- "yes" # chose yes or not
+seed_phy <- c(100, 101)
+set.seed(seed_phy[1])
+if(phylogeny_expanded == "yes"){
+  reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
+  info_fix_poly <- build_info(names(hedgesg), reptiles_tree_time_tree, 
+                              find.ranks=TRUE, db="ncbi")
+  input_fix_poly <- info2input(info_fix_poly, reptiles_tree_time_tree,
+                               parallelize=F)
+  tree_time_tree_ready <- rand_tip(input = input_fix_poly, 
+                                   tree = reptiles_tree_time_tree,
+                                   forceultrametric=TRUE,
+                                   prune=TRUE)
+  tree_time_tree_ready$tip.label <- gsub("_", " ", tree_time_tree_ready$tip.label)
+} else if (phylogeny_expanded == "not"){
+  ### manual corrections in phylogeny to use phylogeny directly ###
+  lack_species <- c("Anepischetosia maccoyi", "Nannoscincus maccoyi")
+  reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
+  hedgesg_without_lack <- hedgesg[!names(hedgesg) %in% lack_species]
+  different_species <- reptiles_tree_time_tree$tip.label[!reptiles_tree_time_tree$tip.label %in% names(hedgesg_without_lack)]
+  different_species_hedgesg <- names(hedgesg_without_lack)[!names(hedgesg_without_lack) %in%  reptiles_tree_time_tree$tip.label]
+  
+  names(hedgesg_without_lack)[grepl('ruf', names(hedgesg_without_lack))] <- different_species[different_species == "Lycodon rufozonatus"]
+  reptiles_tree_time_tree$tip.label[grepl('Elaphe tae', reptiles_tree_time_tree$tip.label)] <- different_species_hedgesg[different_species_hedgesg == "Elaphe taeniura"]
+  names(hedgesg_without_lack)[grepl('sinensis', names(hedgesg_without_lack))][1] <- different_species[different_species == "Mauremys sinensis"]
+  names(hedgesg_without_lack)[grepl('piscator', names(hedgesg_without_lack))] <- different_species[different_species == "Fowlea piscator"]
+  names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][1] <- different_species[different_species == "Amalosia lesueurii"]
+  names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][2] <- different_species[different_species == "Intellagama lesueurii"]
+  
+  tree_time_tree_ready <- force.ultrametric(reptiles_tree_time_tree)
+  hedgesg <- hedgesg_without_lack
+} else {
+  message("Error! Chose 'yes' or 'not' ")
+}
+
+bisse_one <- make.bisse(tree = tree_time_tree_ready, states = hedgesg)
+initial <- starting.point.bisse(tree_time_tree_ready)
+resu <- find.mle(bisse_one, initial, method = "subplex")
+round(resu$par, 9)
+trans.rates.hisse <- TransMatMakerHiSSE()
+
+hisse(tree_time_tree_ready, hedgesg, hidden.states=FALSE,trans.rate=trans.rates.hisse)
+hisse(tree_time_tree_ready, hedgesg)
+
+
+make.hisse
 
 library(geiger);
 library(phytools);
@@ -321,86 +373,4 @@ if(states_choice == "one"){
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 
-trans.rates.hisse <- TransMatMakerHiSSE(hidden.traits=0)
-hisse(tree_time_tree_ready, hedgesg, hidden.states=TRUE, turnover=c(1,2,1,2),
-      eps=c(1,2,1,2), trans.rate=trans.rates.hisse)
-hisse(tree_time_tree_ready, hedgesg)
-for(i in seq_along(seeds)){
-  set.seed(seeds[i])
-  ### MUSSE CALCULATION NCBI ###
-  
-  ### musse ###
-  # 1 musse full #
-  musse_full <- make.musse(tree_time_tree_ready, states = hedgesg, k = 3)
-  init <- starting.point.musse(tree_time_tree_ready, k = 3)
-  result_musse_full <- find.mle(musse_full, x.init = init)
-  round(result_musse_full$par, 9)
-  
-  # 2 musse null #
-  musse_null <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1,
-                          mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
-                          q23 ~ q12, q31 ~ 0, q32 ~ q12)
-  result_musse_null <- find.mle(musse_null, x.init = init[argnames(musse_null)])
-  round(result_musse_null$par, 9)
-  
-  # 3 musse lambda #
-  musse_lambda <- constrain(musse_full, mu2 ~ mu1, mu3 ~ mu1, q13 ~ 0, q21 ~ q12, 
-                            q23 ~ q12, q31 ~ 0, q32 ~ q12)
-  result_lambda <- find.mle(musse_lambda, x.init = init[argnames(musse_lambda)])
-  round(result_lambda$par, 9)
-  
-  # 4 musse mu #
-  musse_mu <- constrain(musse_full, lambda2 ~ lambda1, lambda3 ~ lambda1, 
-                        q13 ~ 0, q21 ~ q12, q23 ~ q12, q31 ~ 0, q32 ~ q12)
-  result_mu <- find.mle(musse_mu, x.init = init[argnames(musse_mu)])
-  round(result_mu$par, 9)
-  
-  # anova to see best musse model #
-  anova_result <- anova(result_musse_null,
-                        all.different = result_musse_full,
-                        free.lambda = result_lambda,
-                        free.mu = result_mu)
-  
-  # look results to best model #
-  aicw(setNames(anova_result$AIC, row.names(anova_result)))
-  round(coef(result_musse_full), 9)
-  logLik(result_musse_full)
-  AIC(result_musse_full)
-  round(result_musse_full$par, 9)
-  
-  # percentage to rates #
-  prop_lambda <- round(((result_musse_full$par[1:3]  / max(result_musse_full$par[1:3])) * 100), 3)
-  prop_mu <- round(((result_musse_full$par[4:6]  / max(result_musse_full$par[4:6])) * 100), 3)
-  prop_transi <- round(((result_musse_full$par[7:length(result_musse_full$par)]  / max(result_musse_full$par[7:length(result_musse_full$par)])) * 100), 3)
-  
-  save.image(paste0("output/", "phy_expanded",
-                    "_", phylogeny_expanded,
-                    "stat", "_",states_choice, "_", 
-                    "markov", "_", seeds[i], "_", 
-                    "envi.RDS"))
-  
-  ###### Bayesian MCMC to find posterior density #######
-  prior <- make.prior.exponential(1/2)
-  
-  preliminar <- diversitree::mcmc(musse_full, 
-                                  result_musse_full$par, 
-                                  nsteps=100, prior=prior,
-                                  w=1, print.every = 0)
-  
-  w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
-  
-  mcmc_result <- diversitree::mcmc(musse_full, 
-                                   init[colnames(w)], 
-                                   nsteps=time,prior=prior, 
-                                   w=w, print.every=100)
-  
-  write.csv2(mcmc_result, file=paste0("output/","phy_expanded",
-                                      "_", phylogeny_expanded,
-                                      "stat", "_",
-                                      states_choice, "_",
-                                      "markov", "_",
-                                      seeds[i], "_",
-                                      "mcmc.csv"),
-             row.names = FALSE)
-  #save.image("mcmc.rds")
-}
+
