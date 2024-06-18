@@ -26,6 +26,7 @@ library(bayou)
 library(ggtree)
 library(dispRity)
 library(BAMMtools)
+library(hisse)
 
 ### READING DATA ###
 
@@ -206,129 +207,55 @@ bisse_one <- make.bisse(tree = tree_time_tree_ready, states = hedgesg)
 initial <- starting.point.bisse(tree_time_tree_ready)
 resu <- find.mle(bisse_one, initial, method = "subplex")
 round(resu$par, 9)
-trans.rates.hisse <- TransMatMakerHiSSE()
 
-hisse(tree_time_tree_ready, hedgesg, hidden.states=FALSE,trans.rate=trans.rates.hisse)
-hisse(tree_time_tree_ready, hedgesg)
+hedgesg <- rownames_to_column(data.frame(hedgesg))
+colnames(hedgesg)[1] <- "species"
 
+#trans.rates.hisse <- TransMatMakerHiSSE(hidden.traits=0)
+#hisse_bisse_done <- hisse(tree_time_tree_ready, hedgesg, hidden.states=FALSE,
+#      turnover=c(1,2), eps=c(1,2), trans.rate=trans.rates.hisse)
 
-make.hisse
-
-library(geiger);
-library(phytools);
-library(phyloTop)
-library(TreeSim);
-library(ape);
-library(diversitree)
-library(apTreeshape); 
-library(RPANDA)
-library(BAMMtools)
-library(hisse)
-### muhisse ###
-pars <- c(.1, .15, .2, .1, # lambda 1, 2, 3, 4
-          .03, .045, .06, 0.03, # mu 1, 2, 3, 4
-          .05, .05, .00, # q12, q13, q14
-          .05, .00, .05, # q21, q23, q24
-          .05, .00, .05, # q31, q32, q34
-          .00, .05, .05)
-
-set.seed(2)
-phy <- tree.musse(pars, 30, x0=1)
-states <- phy$tip.state
-lik <- make.musse(phy, states, 4)
-#lik <- make.musse(phy, states, 3)
-diversitree.free = lik(pars)
-print(diversitree.free)
-states <- data.frame(phy$tip.state, phy$tip.state,
-                     row.names=names(phy$tip.state))
-states <- states[phy$tip.label,]
-states.trans <- states
-for(i in 1:Ntip(phy)){
-  if(states[i,1] == 1){
-    states.trans[i,1] = 0
-    states.trans[i,2] = 0
-  }
-  if(states[i,1] == 2){
-    states.trans[i,1] = 0
-    states.trans[i,2] = 1
-  }
-  if(states[i,1] == 3){
-    states.trans[i,1] = 1
-    states.trans[i,2] = 0
-  }
-  if(states[i,1] == 4){
-    states.trans[i,1] = 1
-    states.trans[i,2] = 1
-  }
-}
-pars.hisse <- c(pars[1]+pars[5],pars[2]+pars[6],pars[3]+pars[7],pars[4]+pars[8],
-                pars[5]/pars[1],pars[6]/pars[2],pars[7]/pars[3],pars[8]/pars[4],
-                0.05,0.05,0, 0.05,0,0.05, 0.05,0,.05, 0,0.05,.05)
-model.vec = rep(0,384)
-model.vec[1:20] = pars.hisse
-phy$node.label = NULL
-cache <- hisse:::ParametersToPassMuHiSSE(model.vec=model.vec, hidden.states=TRUE,
-                                         nb.tip=Ntip(phy), nb.node=Nnode(phy),
-                                         bad.likelihood=exp(-300), f=c(1,1,1,1), ode.eps=0)
-cache$psi <- 0
-gen <- hisse:::FindGenerations(phy)
-dat.tab <- hisse:::OrganizeData(states.trans, phy, f=c(1,1,1,1), hidden.states=TRUE)
-hisse.constrained <- hisse:::DownPassMuHisse(dat.tab, gen=gen, cache=cache,
-                                             root.type="madfitz", condition.on.survival=TRUE,
-                                             root.p=NULL)
-comparison <- identical(round(hisse.constrained,4), round(diversitree.free,4))
-print(comparison)
-pars.hisse <- rep(c(pars[1]+pars[5],pars[2]+pars[6],pars[3]+pars[7],pars[4]+pars[8],
-                    pars[5]/pars[1],pars[6]/pars[2],pars[7]/pars[3],pars[8]/pars[4],
-                    0.05,0.05,0, 0.05,0,0.05, 0.05,0,.05, 0,0.05,.05, 1,rep(0,6), 1,
-                    rep(0,6), 1,rep(0,6), 1,rep(0,6)),2)
-model.vec = rep(0,384)
-model.vec[1:96] = pars.hisse
-phy$node.label = NULL
-cache <- hisse:::ParametersToPassMuHiSSE(model.vec=model.vec, hidden.states=TRUE,
-                                         nb.tip=Ntip(phy), nb.node=Nnode(phy),
-                                         bad.likelihood=exp(-300), f=c(1,1,1,1),
-                                         ode.eps=0)
-cache$psi <- 0
-gen <- hisse:::FindGenerations(phy)
-dat.tab <- hisse:::OrganizeData(states.trans, phy, f=c(1,1,1,1), hidden.states=TRUE)
-hisse.constrained <- hisse:::DownPassMuHisse(dat.tab, gen=gen, cache=cache,
-                                             root.type="madfitz", condition.on.survival=TRUE,
-                                             root.p=NULL)
-comparison <- identical(round(hisse.constrained,4), round(diversitree.free,4))
-print(comparison)
-turnover <- c(1,1,1,1)
-extinction.fraction <- c(1,1,1,1)
-f = c(1,1,1,1)
-trans.rate <- TransMatMakerMuHiSSE(hidden.traits=0)
-print(trans.rate)
-states.trans <- cbind(phy$tip.label, states.trans)
-dull.null <- MuHiSSE(phy=phy, data=states.trans, f=f, turnover=turnover,
-                     eps=extinction.fraction, hidden.states=FALSE,
-                     trans.rate=trans.rate)
-turnover <- c(1,2,3,4)
-extinction.fraction <- c(1,1,1,1)
-MuSSE <- MuHiSSE(phy=phy, data=states.trans, f=f, turnover=turnover,
-                 eps=extinction.fraction, hidden.states=FALSE,
-                 trans.rate=trans.rate)
-turnover <- c(1,2,3,4,5,6,7,8)
-extinction.fraction <- rep(1, 8)
-f = c(1,1,1,1)
-trans.rate <- TransMatMakerMuHiSSE(hidden.traits=1)
-print(trans.rate)
-MuHiSSE <- MuHiSSE(phy=phy, data=states.trans, f=f, turnover=turnover,
-                   eps=extinction.fraction, hidden.states=TRUE,
-                   trans.rate=trans.rate)
+trans.rates.hisse <- TransMatMakerHiSSE(hidden.traits=1)
+hisse_final <- hisse(tree_time_tree_ready, hedgesg, hidden.states=TRUE,
+                                         turnover=c(1,2,1,2), eps=c(1,2,1,2), trans.rate=trans.rates.hisse)
+margin.test <- MarginReconHiSSE(phy=tree_time_tree_ready, data=hedgesg, 
+                                pars=hisse_final$solution, hidden.states=1,
+                                f=c(1, 1))
 
 
-turnover <- c(1,1,1,1,2,2,2,2)
-extinction.fraction <- rep(1, 8)
-f = c(1,1,1,1)
-trans.rate <- TransMatMakerMuHiSSE(hidden.traits=1, make.null=TRUE)
-print(trans.rate)
-## Three hidden states
-turnover <- c(rep(1,4), rep(2,4), rep(3,4))
-extinction.fraction <- rep(1, 12)
+
+
+pars <- c(0.1, 0.2, 0.03, 0.03, 0.01, 0.01)
+set.seed(4)
+phy <- tree.bisse(pars, max.t=30, x0=0)
+sim.dat <- data.frame(names(phy$tip.state), phy$tip.state)
+
+trans.rates.bisse <- TransMatMakerHiSSE(hidden.traits=0)
+pp.bisse <- hisse(phy, sim.dat, hidden.states=FALSE, turnover=c(1,2),
+                  eps=c(1,2), trans.rate=trans.rates.bisse)
+## Now fit HiSSE equivalent with a hidden state for state 1:
+trans.rates.hisse <- TransMatMakerHiSSE(hidden.traits=1)
+pp.hisse <- hisse(phy, sim.dat, hidden.states=TRUE, turnover=c(1,2,1,2),
+                  eps=c(1,2,1,2), trans.rate=trans.rates.hisse)
+
+
+# muhisse #
+load("table_and_phy_ready.RDS")
+
+result$hedgesg <- abs(result$hedgesg)
+result_all_species <- result %>%
+  group_by(species_complete) %>%
+  summarise(hedgesg = mean(hedgesg))
+hedgesg <- abs(result_all_species$hedgesg)
+
+reptiles_tree_time_tree <- read.newick("data/raw/species.nwk")
+
+### STATES ###
+first_quartile <- round(summary(hedgesg)[2], 2)
+second_quartile <- round(summary(hedgesg)[3], 2)
+
+seeds <- c(2, 3, 4)
+time <- 100000
 
 states_choice <- c("one") #can be one, two, or three
 if(states_choice == "one"){
@@ -373,4 +300,48 @@ if(states_choice == "one"){
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 
+### choose phylogeny - expanded or not ###
+phylogeny_expanded <- "yes" # chose yes or not
+seed_phy <- c(100, 101)
+set.seed(seed_phy[1])
+if(phylogeny_expanded == "yes"){
+  reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
+  info_fix_poly <- build_info(names(hedgesg), reptiles_tree_time_tree, 
+                              find.ranks=TRUE, db="ncbi")
+  input_fix_poly <- info2input(info_fix_poly, reptiles_tree_time_tree,
+                               parallelize=F)
+  tree_time_tree_ready <- rand_tip(input = input_fix_poly, 
+                                   tree = reptiles_tree_time_tree,
+                                   forceultrametric=TRUE,
+                                   prune=TRUE)
+  tree_time_tree_ready$tip.label <- gsub("_", " ", tree_time_tree_ready$tip.label)
+} else if (phylogeny_expanded == "not"){
+  ### manual corrections in phylogeny to use phylogeny directly ###
+  lack_species <- c("Anepischetosia maccoyi", "Nannoscincus maccoyi")
+  reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
+  hedgesg_without_lack <- hedgesg[!names(hedgesg) %in% lack_species]
+  different_species <- reptiles_tree_time_tree$tip.label[!reptiles_tree_time_tree$tip.label %in% names(hedgesg_without_lack)]
+  different_species_hedgesg <- names(hedgesg_without_lack)[!names(hedgesg_without_lack) %in%  reptiles_tree_time_tree$tip.label]
+  
+  names(hedgesg_without_lack)[grepl('ruf', names(hedgesg_without_lack))] <- different_species[different_species == "Lycodon rufozonatus"]
+  reptiles_tree_time_tree$tip.label[grepl('Elaphe tae', reptiles_tree_time_tree$tip.label)] <- different_species_hedgesg[different_species_hedgesg == "Elaphe taeniura"]
+  names(hedgesg_without_lack)[grepl('sinensis', names(hedgesg_without_lack))][1] <- different_species[different_species == "Mauremys sinensis"]
+  names(hedgesg_without_lack)[grepl('piscator', names(hedgesg_without_lack))] <- different_species[different_species == "Fowlea piscator"]
+  names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][1] <- different_species[different_species == "Amalosia lesueurii"]
+  names(hedgesg_without_lack)[grepl('lesueurii', names(hedgesg_without_lack))][2] <- different_species[different_species == "Intellagama lesueurii"]
+  
+  tree_time_tree_ready <- force.ultrametric(reptiles_tree_time_tree)
+  hedgesg <- hedgesg_without_lack
+} else {
+  message("Error! Chose 'yes' or 'not' ")
+}
 
+hedgesg <- rownames_to_column(data.frame(hedgesg))
+colnames(hedgesg)[1] <- "species"
+hedgesg$hidden <-  round(runif(nrow(hedgesg)))
+trans.rate <- TransMatMakerMuHiSSE(hidden.traits=1, make.null=TRUE)
+pp <- MuHiSSE(phy=tree_time_tree_ready, hedgesg, f=c(1,1,1,1), turnover=c(1,1,1,1), 
+              eps=c(1,1,1,1), trans.rate=trans.rate)
+margin.test <- MarginReconMuHiSSE(phy=fbd.tree$phy, data=data, f=c(1,1,1,1), 
+                                  pars=pp$solution, hidden.states=1, includes.fossils=TRUE,
+                                  k.samples=fbd.tree$k.samples)
