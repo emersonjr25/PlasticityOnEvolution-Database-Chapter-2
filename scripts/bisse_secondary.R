@@ -45,7 +45,7 @@ first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
 
 seeds <- c(2, 3, 4)
-time <- 100000
+time <- 150000
 
 states_choice <- c("one") #can be one, two, or three
 if(states_choice == "one"){
@@ -58,28 +58,15 @@ if(states_choice == "one"){
     } 
   }
 } else if(states_choice == "two"){
-  # states second way - using 3 quartiles #
-  states <- function(x){
-    if(x <= first_quartile){
-      x <- 1
-    } else if (x > first_quartile & x <= second_quartile){
-      x <- 2
-    } else if(x > second_quartile){
-      x <- 3
+    # states first way - around 0.2, 0.5, 0.8 #
+    states <- function(x){
+      if(x <= 0.35){
+        x <- 0
+      } else if (x > 0.35){
+        x <- 1
+      } 
     }
-  }
-} else if(states_choice == "three"){
-  # states third way - some articles #
-  # can considered very low, low, and medium/high or #
-  # low, medium, and high #
-  states <- function(x){
-    if(x <= 0.5){
-      x <- 0
-    }  else if(x > 0.5){
-      x <- 1
-    }
-  }
-} else {
+  } else {
   message("Error! Chose 'one', 'two', or 'three")
 }
 
@@ -122,8 +109,66 @@ if(phylogeny_expanded == "yes"){
   message("Error! Chose 'yes' or 'not' ")
 }
 
+# full #
 bisse_one <- make.bisse(tree = tree_time_tree_ready, states = hedgesg)
 initial <- starting.point.bisse(tree_time_tree_ready)
-resu <- find.mle(bisse_one, initial, method = "subplex")
+resu <- find.mle(bisse_one, initial)
 round(resu$par, 9)
 
+# null #
+bisse_null <- constrain(bisse_one, lambda1~lambda0,mu1~mu0)
+resu_null <- find.mle(bisse_null, initial[argnames(bisse_null)])
+round(resu_null$par, 9)
+
+bisseAnova<- anova(resu,
+                  null=resu_null)
+bisseAnova
+
+aicw(setNames(bisseAnova$AIC,
+              rownames(bisseAnova)))
+
+save.image(paste0("output/", "phy_expanded",
+                  "_", phylogeny_expanded,
+                  "stat", "_",states_choice, "_", 
+                  "markov", "_", seeds[1], "_", 
+                  "envi.RDS"))
+
+prior <-make.prior.exponential(1/2)
+
+preliminar <- diversitree::mcmc(bisse_one, 
+                                resu$par, 
+                                nsteps=100, prior=prior,
+                                w=1, print.every = 0)
+
+w <- diff(sapply(preliminar[2:(ncol(preliminar) -1)], quantile, c(0.05, 0.95)))
+
+bisse.mcmc <- diversitree::mcmc(bisse_one, 
+                 initial[colnames(w)],
+                 nsteps=time,
+                 prior=prior,
+                 w=w,
+                 print.every=100)
+write.csv2(bisse.mcmc, file=paste0("output/","phy_expanded_bisse",
+                                    "_", phylogeny_expanded,
+                                    "stat", "_",
+                                    states_choice, "_",
+                                    "markov", "_",
+                                    seeds[1], "_",
+                                    "mcmc.csv"),
+           row.names = FALSE)
+
+# bisse analysis #
+phy_expanded_cohen_one_rep_one <- read.csv2("output/phy_expanded_bisse_yesstat_one_markov_2_mcmc.csv")
+state_chosen <- phy_expanded_cohen_one_rep_one
+
+mcmc_max <- nrow(state_chosen)
+mcmc_out_burn_in <- round(nrow(state_chosen) * 0.2) + 1
+mcmc_result <- state_chosen[mcmc_out_burn_in:mcmc_max, ]
+
+n.eff(as.matrix(state_chosen[, 2:(length(mcmc_result) - 1)]))
+n.eff(as.matrix(state_chosen[, 2:3]))
+n.eff(as.matrix(state_chosen[, 4:5]))
+n.eff(as.matrix(state_chosen[, 6:7]))
+
+mean_posteriors <- colMeans(mcmc_result)[2:ncol(mcmc_result)]
+round(mean_posteriors, 5)
