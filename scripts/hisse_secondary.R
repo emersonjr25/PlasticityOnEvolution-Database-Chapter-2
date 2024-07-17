@@ -128,19 +128,9 @@ colnames(hedgesg)[1] <- "species"
 trans.rates.hisse <- TransMatMakerHiSSE(hidden.traits=1)
 hisse_final <- hisse(tree_time_tree_ready, hedgesg, hidden.states=TRUE,
                                          turnover=c(1,2,1,2), eps=c(1,2,1,2), trans.rate=trans.rates.hisse)
+round(hisse_final[['solution']][hisse_final[['solution']] > 0], 9)
 margin.test <- MarginReconHiSSE(phy=tree_time_tree_ready, data=hedgesg, 
                                 pars=hisse_final$solution, hidden.states=1,
                                 f=c(1, 1))
-
-pars <- c(0.1, 0.2, 0.03, 0.03, 0.01, 0.01)
-set.seed(4)
-phy <- tree.bisse(pars, max.t=30, x0=0)
-sim.dat <- data.frame(names(phy$tip.state), phy$tip.state)
-
-trans.rates.bisse <- TransMatMakerHiSSE(hidden.traits=0)
-pp.bisse <- hisse(phy, sim.dat, hidden.states=FALSE, turnover=c(1,2),
-                  eps=c(1,2), trans.rate=trans.rates.bisse)
-## Now fit HiSSE equivalent with a hidden state for state 1:
-trans.rates.hisse <- TransMatMakerHiSSE(hidden.traits=1)
-pp.hisse <- hisse(phy, sim.dat, hidden.states=TRUE, turnover=c(1,2,1,2),
-                  eps=c(1,2,1,2), trans.rate=trans.rates.hisse)
+round(margin.test$rates.mat, 9)
+plot(margin.test)

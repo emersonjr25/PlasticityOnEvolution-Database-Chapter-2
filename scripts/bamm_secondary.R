@@ -102,3 +102,103 @@ cat("mu: mean", mean(rates$mu),"sd", sd(rates.whales$mu))
 hist(rates$lambda-rates.whales$mu, main = NULL, xlab = "Diversification rate")
 abline(v = mean(rates$lambda-rates.whales$mu), col = "red", lwd = 2)
 marg_probs <- marginalShiftProbsTree(results)
+
+### rates ###
+
+lambda <- data.frame(tip$lambda.avg)
+mu <- data.frame(tip$mu.avg)
+
+### classifying ###
+load("table_and_phy_ready.RDS")
+
+result$hedgesg <- abs(result$hedgesg)
+result_all_species <- result %>%
+  group_by(species_complete) %>%
+  summarise(hedgesg = mean(hedgesg))
+hedgesg <- abs(result_all_species$hedgesg)
+
+reptiles_tree_time_tree <- read.newick("data/raw/species.nwk")
+
+### STATES ###
+first_quartile <- round(summary(hedgesg)[2], 2)
+second_quartile <- round(summary(hedgesg)[3], 2)
+
+seeds <- c(2, 3, 4)
+time <- 100000
+
+states_choice <- c("one") #can be one, two, or three
+if(states_choice == "one"){
+  # states first way - around 0.2, 0.5, 0.8 #
+  states <- function(x){
+    if(x <= 0.35){
+      x <- 1
+    } else if (x > 0.35 & x <= 0.65){
+      x <- 2
+    } else if(x > 0.65){
+      x <- 3
+    }
+  }
+} else if(states_choice == "two"){
+  # states second way - using 3 quartiles #
+  states <- function(x){
+    if(x <= first_quartile){
+      x <- 1
+    } else if (x > first_quartile & x <= second_quartile){
+      x <- 2
+    } else if(x > second_quartile){
+      x <- 3
+    }
+  }
+} else if(states_choice == "three"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.2){
+      x <- 1
+    } else if (x > 0.2 & x <= 0.5){
+      x <- 2
+    } else if(x > 0.5){
+      x <- 3
+    }
+  }
+} else {
+  message("Error! Chose 'one', 'two', or 'three")
+}
+
+hedgesg <- sapply(hedgesg, states)
+hedgesg <- setNames(hedgesg, result_all_species$species_complete)
+
+states <- data.frame(hedgesg)
+states <- rownames_to_column(states, var='species')
+states$species <- tolower(states$species)
+
+mu <- rownames_to_column(mu, var='species')
+mu$species <- gsub("_", " ", mu$species)
+mu$species <- tolower(mu$species)
+
+lambda <- rownames_to_column(lambda, var='species')
+lambda$species <- gsub("_", " ", lambda$species)
+lambda$species <- tolower(lambda$species)
+
+result_final_bamm <- inner_join(states, lambda, by='species')
+result_final_bamm <- inner_join(result_final_bamm, mu, by='species')
+
+plot(result_final_bamm$hedgesg, result_final_bamm$tip.lambda.avg)
+plot(result_final_bamm$hedgesg, result_final_bamm$tip.mu.avg)
+
+result_final_bamm |>
+  group_by(hedgesg) |>
+  summarise(mean(tip.lambda.avg))
+
+result_final_bamm |>
+  group_by(hedgesg) |>
+  summarise(mean(tip.mu.avg))
+
+result_final_bamm %>% 
+  ggplot(aes(tip.lambda.avg, fill = as.factor(hedgesg))) + 
+  geom_density(alpha=0.7)
+
+result_final_bamm %>% 
+  ggplot(aes(tip.mu.avg, fill = as.factor(hedgesg))) + 
+  geom_density(alpha=0.7)

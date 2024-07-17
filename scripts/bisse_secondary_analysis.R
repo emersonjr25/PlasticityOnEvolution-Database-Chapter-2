@@ -34,9 +34,9 @@ mcmc_out_burn_in <- round(nrow(state_chosen) * 0.2) + 1
 mcmc_result <- state_chosen[mcmc_out_burn_in:mcmc_max, ]
 
 n.eff(as.matrix(state_chosen[, 2:(length(mcmc_result) - 1)]))
-n.eff(as.matrix(state_chosen[, 2:4]))
-n.eff(as.matrix(state_chosen[, 5:7]))
-n.eff(as.matrix(state_chosen[, 8:13]))
+n.eff(as.matrix(state_chosen[, 2:3]))
+n.eff(as.matrix(state_chosen[, 4:5]))
+n.eff(as.matrix(state_chosen[, 5:6]))
 
 ###### BAYES FACTOR CALCULATION ######
 bf_mean <- function(x, y) x / y
@@ -162,7 +162,7 @@ speciation <- mcmc_result_pivoted %>%
   scale_x_sqrt() +
   theme_bw() +
   scale_fill_hue(labels = c("Low Plasticity (1)", 
-                            "Medium Plasticity (2)"),
+                            "High Plasticity (2)"),
                  name="States") +
   theme(legend.position = c(0.8, 0.75),
         axis.title.x = element_text(size = 16), 
@@ -189,7 +189,7 @@ extinction <- mcmc_result_pivoted %>%
   scale_x_sqrt() +
   theme_bw() +
   scale_fill_hue(labels = c("Low Plasticity (1)", 
-                            "Medium Plasticity (2)"),
+                            "High Plasticity (2)"),
                  name="States") +
   theme(legend.position = c(0.8, 0.75),
         axis.title.x = element_text(size = 16), 
@@ -216,8 +216,7 @@ diversification <- mcmc_result_pivoted %>%
   scale_x_sqrt() +
   theme_bw() +
   scale_fill_hue(labels = c("Low Plasticity (1)", 
-                            "Medium Plasticity (2)", 
-                            "High Plasticity (3)"),
+                            "High Plasticity (2)"),
                  name="States") +
   theme(legend.position = c(0.8, 0.75),
         axis.title.x = element_text(size = 16), 
