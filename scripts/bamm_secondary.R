@@ -96,11 +96,6 @@ plotRateThroughTime(results)
 tip <- getTipRates(results)
 hist(tip$lambda.avg, xlab = "Average lambda", main = NULL)
 rates <- getCladeRates(results)
-cat("whales rate: mean", mean(rates$lambda-rates.whales$mu),"sd", sd(rates.whales$lambda-rates.whales$mu))
-cat("lamda: mean", mean(rates$lambda), "sd", sd(rates.whales$lambda))
-cat("mu: mean", mean(rates$mu),"sd", sd(rates.whales$mu))
-hist(rates$lambda-rates.whales$mu, main = NULL, xlab = "Diversification rate")
-abline(v = mean(rates$lambda-rates.whales$mu), col = "red", lwd = 2)
 marg_probs <- marginalShiftProbsTree(results)
 
 ### rates ###
@@ -130,41 +125,64 @@ states_choice <- c("one") #can be one, two, or three
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
-    if(x <= 0.35){
+    if(x <= 0.65){
+      x <- 0
+    } else if (x > 0.65){
       x <- 1
-    } else if (x > 0.35 & x <= 0.65){
-      x <- 2
-    } else if(x > 0.65){
-      x <- 3
-    }
+    } 
   }
 } else if(states_choice == "two"){
-  # states second way - using 3 quartiles #
+  # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
-    if(x <= first_quartile){
+    if(x <= 0.35){
+      x <- 0
+    } else if (x > 0.35){
       x <- 1
-    } else if (x > first_quartile & x <= second_quartile){
-      x <- 2
-    } else if(x > second_quartile){
-      x <- 3
-    }
-  }
-} else if(states_choice == "three"){
-  # states third way - some articles #
-  # can considered very low, low, and medium/high or #
-  # low, medium, and high #
-  states <- function(x){
-    if(x <= 0.2){
-      x <- 1
-    } else if (x > 0.2 & x <= 0.5){
-      x <- 2
-    } else if(x > 0.5){
-      x <- 3
-    }
+    } 
   }
 } else {
   message("Error! Chose 'one', 'two', or 'three")
 }
+
+# states_choice <- c("one") #can be one, two, or three
+# if(states_choice == "one"){
+#   # states first way - around 0.2, 0.5, 0.8 #
+#   states <- function(x){
+#     if(x <= 0.35){
+#       x <- 1
+#     } else if (x > 0.35 & x <= 0.65){
+#       x <- 2
+#     } else if(x > 0.65){
+#       x <- 3
+#     }
+#   }
+# } else if(states_choice == "two"){
+#   # states second way - using 3 quartiles #
+#   states <- function(x){
+#     if(x <= first_quartile){
+#       x <- 1
+#     } else if (x > first_quartile & x <= second_quartile){
+#       x <- 2
+#     } else if(x > second_quartile){
+#       x <- 3
+#     }
+#   }
+# } else if(states_choice == "three"){
+#   # states third way - some articles #
+#   # can considered very low, low, and medium/high or #
+#   # low, medium, and high #
+#   states <- function(x){
+#     if(x <= 0.2){
+#       x <- 1
+#     } else if (x > 0.2 & x <= 0.5){
+#       x <- 2
+#     } else if(x > 0.5){
+#       x <- 3
+#     }
+#   }
+# } else {
+#   message("Error! Chose 'one', 'two', or 'three")
+# }
 
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)

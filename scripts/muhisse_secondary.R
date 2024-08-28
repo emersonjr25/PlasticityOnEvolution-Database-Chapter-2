@@ -129,14 +129,6 @@ if(phylogeny_expanded == "yes"){
 hedgesg <- rownames_to_column(data.frame(hedgesg))
 colnames(hedgesg)[1] <- "species"
 
-hedgesg$hedges2 <- hedgesg$hedgesg
-
-hedgesg$hedgesg[hedgesg$hedgesg == 1] <- 0
-hedgesg$hedges2[hedgesg$hedges2 == 1] <- 1
-
-hedgesg$hedgesg[hedgesg$hedgesg != 0] <- 1
-hedgesg$hedges2[hedgesg$hedges2 != 1] <- 0
-
 trans.rate <- TransMatMakerMuHiSSE(hidden.traits=1)
 pp <- MuHiSSE(phy=tree_time_tree_ready, hedgesg, trans.rate=trans.rate)
 margin.test <- MarginReconMuHiSSE(phy=fbd.tree$phy, data=data, f=c(1,1,1,1), 

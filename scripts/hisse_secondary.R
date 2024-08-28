@@ -47,7 +47,7 @@ second_quartile <- round(summary(hedgesg)[3], 2)
 seeds <- c(2, 3, 4)
 time <- 100000
 
-states_choice <- c("one") #can be one, two, or three
+states_choice <- c("fourth") #can be one, two, or three
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
@@ -60,12 +60,10 @@ if(states_choice == "one"){
 } else if(states_choice == "two"){
   # states second way - using 3 quartiles #
   states <- function(x){
-    if(x <= first_quartile){
-      x <- 1
-    } else if (x > first_quartile & x <= second_quartile){
-      x <- 2
+    if(x <= second_quartile){
+      x <- 0
     } else if(x > second_quartile){
-      x <- 3
+      x <- 1
     }
   }
 } else if(states_choice == "three"){
@@ -78,9 +76,20 @@ if(states_choice == "one"){
     }  else if(x > 0.5){
       x <- 1
     }
-  }
+  } 
+} else if(states_choice == "fourth"){
+    # states third way - some articles #
+    # can considered very low, low, and medium/high or #
+    # low, medium, and high #
+    states <- function(x){
+      if(x <= 0.35){
+        x <- 0
+      }  else if(x > 0.35){
+        x <- 1
+      }
+    }
 } else {
-  message("Error! Chose 'one', 'two', or 'three")
+  message("Error! Chose 'one', 'two','three' or fourth" )
 }
 
 hedgesg <- sapply(hedgesg, states)
@@ -89,7 +98,7 @@ hedgesg <- setNames(hedgesg, result_all_species$species_complete)
 ### choose phylogeny - expanded or not ###
 phylogeny_expanded <- "yes" # chose yes or not
 seed_phy <- c(100, 101)
-set.seed(seed_phy[1])
+set.seed(seed_phy[2])
 if(phylogeny_expanded == "yes"){
   reptiles_tree_time_tree$tip.label <- gsub("_", " ", reptiles_tree_time_tree$tip.label)
   info_fix_poly <- build_info(names(hedgesg), reptiles_tree_time_tree, 
@@ -122,8 +131,13 @@ if(phylogeny_expanded == "yes"){
   message("Error! Chose 'yes' or 'not' ")
 }
 
-hedgesg <- rownames_to_column(data.frame(hedgesg))
-colnames(hedgesg)[1] <- "species"
+tree_time_tree_ready$tip.label <- gsub(" ", "_", tree_time_tree_ready$tip.label)
+names(hedgesg) <- gsub(" ", "_", names(hedgesg))
+hedgesg <- data.frame(hedgesg)
+matrix_bisse <- as.matrix(hedgesg)
+
+#write.tree(tree_time_tree_ready, 'tree_hisse.nex')
+write.csv(hedgesg, 'hedges.csv')
 
 trans.rates.hisse <- TransMatMakerHiSSE(hidden.traits=1)
 hisse_final <- hisse(tree_time_tree_ready, hedgesg, hidden.states=TRUE,
