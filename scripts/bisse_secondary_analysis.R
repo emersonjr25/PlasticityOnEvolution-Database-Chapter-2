@@ -27,7 +27,7 @@ library(ggtree)
 ########### phylogeny with 3 cohen ways ###############
 #######################################################
 ### state one - 3 rep mcmc ###
-state_chosen <- read.csv2("output/bisse_result/phy_expanded_bisse_yesstat_one_markov_2_mcmc.csv")
+state_chosen <- read.csv2("output/phy_expanded_bisse_yesstat_fourth_markov_2_mcmc.csv")
 
 mcmc_max <- nrow(state_chosen)
 mcmc_out_burn_in <- round(nrow(state_chosen) * 0.2) + 1

@@ -45,9 +45,9 @@ first_quartile <- round(summary(hedgesg)[2], 2)
 second_quartile <- round(summary(hedgesg)[3], 2)
 
 seeds <- c(2, 3, 4)
-time <- 150000
+time <- 50000
 
-states_choice <- c("one") #can be one, two, or three
+states_choice <- c("fourth") #can be one, two, or three
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
@@ -58,16 +58,38 @@ if(states_choice == "one"){
     } 
   }
 } else if(states_choice == "two"){
-    # states first way - around 0.2, 0.5, 0.8 #
-    states <- function(x){
-      if(x <= 0.35){
-        x <- 0
-      } else if (x > 0.35){
-        x <- 1
-      } 
+  # states second way - using 3 quartiles #
+  states <- function(x){
+    if(x <= second_quartile){
+      x <- 0
+    } else if(x > second_quartile){
+      x <- 1
     }
-  } else {
-  message("Error! Chose 'one', 'two', or 'three")
+  }
+} else if(states_choice == "three"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.5){
+      x <- 0
+    }  else if(x > 0.5){
+      x <- 1
+    }
+  } 
+} else if(states_choice == "fourth"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.35){
+      x <- 0
+    }  else if(x > 0.35){
+      x <- 1
+    }
+  }
+} else {
+  message("Error! Chose 'one', 'two','three' or fourth" )
 }
 
 hedgesg <- sapply(hedgesg, states)
@@ -158,7 +180,7 @@ write.csv2(bisse.mcmc, file=paste0("output/","phy_expanded_bisse",
            row.names = FALSE)
 
 # bisse analysis #
-phy_expanded_cohen_one_rep_one <- read.csv2("output/phy_expanded_bisse_yesstat_one_markov_2_mcmc.csv")
+phy_expanded_cohen_one_rep_one <- read.csv2("output/phy_expanded_bisse_yesstat_two_markov_2_mcmc.csv")
 state_chosen <- phy_expanded_cohen_one_rep_one
 
 mcmc_max <- nrow(state_chosen)
