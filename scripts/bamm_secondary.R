@@ -28,7 +28,10 @@ library(dispRity)
 library(BAMMtools)
 library(hisse)
 
+###################################################################
+#### FIRST WAY ####
 ### READING AND TREATING DATA - BAMM ###
+###################################################################
 load("table_and_phy_ready.RDS")
 
 result$hedgesg <- abs(result$hedgesg)
@@ -80,7 +83,7 @@ if(phylogeny_expanded == "yes"){
 ### BAMM ###
 tree_time_tree_ready <- dispRity::remove.zero.brlen(tree_time_tree_ready)
 #write.tree(tree_time_tree_ready, "fil.tre")
-mcmcout <- read.table("mcmc_out.txt", sep=',', header = T)
+mcmcout <- read.table("mcmc_out.txt", sep=',', fill=T, header = T)
 event_data <- read.table("event_data.txt", sep=',', header = T)
 
 plot(mcmcout$logLik ~ mcmcout$generation, pch = 19)
@@ -90,16 +93,15 @@ conver <- sapply(postburn, effectiveSize)
 
 tree_time_tree_ready$tip.label <- gsub(" ", "_", tree_time_tree_ready$tip.label)
 
-results <- BAMMtools::getEventData(tree_time_tree_ready, event_data, burnin=0.25, nsamples=500)
+results <- BAMMtools::getEventData(tree_time_tree_ready, event_data, burnin=0.25)
 
-plotRateThroughTime(results)
+#plotRateThroughTime(results)
 tip <- getTipRates(results)
-hist(tip$lambda.avg, xlab = "Average lambda", main = NULL)
-rates <- getCladeRates(results)
-marg_probs <- marginalShiftProbsTree(results)
+#hist(tip$lambda.avg, xlab = "Average lambda", main = NULL)
+#rates <- getCladeRates(results)
+#marg_probs <- marginalShiftProbsTree(results)
 
 ### rates ###
-
 lambda <- data.frame(tip$lambda.avg)
 mu <- data.frame(tip$mu.avg)
 
@@ -132,57 +134,39 @@ if(states_choice == "one"){
     } 
   }
 } else if(states_choice == "two"){
-  # states first way - around 0.2, 0.5, 0.8 #
+  # states second way - using 3 quartiles #
+  states <- function(x){
+    if(x <= second_quartile){
+      x <- 0
+    } else if(x > second_quartile){
+      x <- 1
+    }
+  }
+} else if(states_choice == "three"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.5){
+      x <- 0
+    }  else if(x > 0.5){
+      x <- 1
+    }
+  } 
+} else if(states_choice == "fourth"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
   states <- function(x){
     if(x <= 0.35){
       x <- 0
-    } else if (x > 0.35){
+    }  else if(x > 0.35){
       x <- 1
-    } 
+    }
   }
 } else {
-  message("Error! Chose 'one', 'two', or 'three")
+  message("Error! Chose 'one', 'two','three' or fourth" )
 }
-
-# states_choice <- c("one") #can be one, two, or three
-# if(states_choice == "one"){
-#   # states first way - around 0.2, 0.5, 0.8 #
-#   states <- function(x){
-#     if(x <= 0.35){
-#       x <- 1
-#     } else if (x > 0.35 & x <= 0.65){
-#       x <- 2
-#     } else if(x > 0.65){
-#       x <- 3
-#     }
-#   }
-# } else if(states_choice == "two"){
-#   # states second way - using 3 quartiles #
-#   states <- function(x){
-#     if(x <= first_quartile){
-#       x <- 1
-#     } else if (x > first_quartile & x <= second_quartile){
-#       x <- 2
-#     } else if(x > second_quartile){
-#       x <- 3
-#     }
-#   }
-# } else if(states_choice == "three"){
-#   # states third way - some articles #
-#   # can considered very low, low, and medium/high or #
-#   # low, medium, and high #
-#   states <- function(x){
-#     if(x <= 0.2){
-#       x <- 1
-#     } else if (x > 0.2 & x <= 0.5){
-#       x <- 2
-#     } else if(x > 0.5){
-#       x <- 3
-#     }
-#   }
-# } else {
-#   message("Error! Chose 'one', 'two', or 'three")
-# }
 
 hedgesg <- sapply(hedgesg, states)
 hedgesg <- setNames(hedgesg, result_all_species$species_complete)
@@ -201,9 +185,13 @@ lambda$species <- tolower(lambda$species)
 
 result_final_bamm <- inner_join(states, lambda, by='species')
 result_final_bamm <- inner_join(result_final_bamm, mu, by='species')
+result_final_bamm$tip.diversification <- abs(result_final_bamm$tip.lambda.avg - result_final_bamm$tip.mu.avg)
 
 plot(result_final_bamm$hedgesg, result_final_bamm$tip.lambda.avg)
 plot(result_final_bamm$hedgesg, result_final_bamm$tip.mu.avg)
+
+teste <- result_final_bamm |>
+  pivot_wider(names_from=hedgesg, values_from = starts_with("tip.lambda"))
 
 result_final_bamm |>
   group_by(hedgesg) |>
@@ -211,12 +199,180 @@ result_final_bamm |>
 
 result_final_bamm |>
   group_by(hedgesg) |>
-  summarise(mean(tip.mu.avg))
+  summarise(round(mean(tip.mu.avg), 9))
+
+result_final_bamm |>
+  group_by(hedgesg) |>
+  summarise(mean(tip.diversification))
+
+result_final_bamm$hedgesg1 <- result_final_bamm$hedgesg
 
 result_final_bamm %>% 
-  ggplot(aes(tip.lambda.avg, fill = as.factor(hedgesg))) + 
-  geom_density(alpha=0.7)
+  ggplot(aes(x = as.factor(hedgesg), y=tip.lambda.avg)) + 
+  geom_boxplot()
 
 result_final_bamm %>% 
-  ggplot(aes(tip.mu.avg, fill = as.factor(hedgesg))) + 
-  geom_density(alpha=0.7)
+  ggplot(aes(x = as.factor(hedgesg), y=tip.mu.avg)) + 
+  geom_boxplot()
+
+result_final_bamm %>% 
+  ggplot(aes(x = as.factor(hedgesg), y=tip.diversification)) + 
+  geom_boxplot()
+
+
+###################################################################
+#### SECOND WAY ####
+### READING AND TREATING DATA - BAMM ###
+###################################################################
+tree_time_tree_ready <- read.tree("data/raw/squamata_pyron_2013.txt") #squamatas
+tree_time_tree_ready <- force.ultrametric(tree_time_tree_ready, method="extend")
+is.ultrametric(tree_time_tree_ready)
+is.binary.tree(tree_time_tree_ready)
+min(tree_time_tree_ready$edge.length)
+write.tree(tree_time_tree_ready, "filogenia_squamata.tre")
+
+tree_time_tree_ready <- read.newick("data/raw/repteis_especies_total.nwk") #repteis
+tree_time_tree_ready <- force.ultrametric(tree_time_tree_ready, method="extend")
+tree_time_tree_ready <- dispRity::remove.zero.brlen(tree_time_tree_ready)
+is.ultrametric(tree_time_tree_ready)
+is.binary.tree(tree_time_tree_ready)
+min(tree_time_tree_ready$edge.length)
+write.tree(tree_time_tree_ready, "filogenia_repteis.tre")
+
+
+tree_time_tree_ready <- read.tree('fil2.tre')
+mcmcout <- read.table("mcmc_out_squamata.txt", sep=',', header = T)
+event_data <- read.table("event_data_squamata.txt", sep=',', header = T)
+
+plot(mcmcout$logLik ~ mcmcout$generation, pch = 19)
+burnstart <- floor(0.1 * nrow(mcmcout))
+postburn <- mcmcout[burnstart:nrow(mcmcout), ]
+conver <- sapply(postburn, effectiveSize)
+
+tree_time_tree_ready$tip.label <- gsub(" ", "_", tree_time_tree_ready$tip.label)
+
+results <- BAMMtools::getEventData(tree_time_tree_ready, event_data, burnin=0.25)
+
+#plotRateThroughTime(results)
+tip <- getTipRates(results)
+#hist(tip$lambda.avg, xlab = "Average lambda", main = NULL)
+#rates <- getCladeRates(results)
+#marg_probs <- marginalShiftProbsTree(results)
+
+### rates ###
+lambda <- data.frame(tip$lambda.avg)
+mu <- data.frame(tip$mu.avg)
+
+### classifying ###
+load("table_and_phy_ready.RDS")
+
+result$hedgesg <- abs(result$hedgesg)
+result_all_species <- result %>%
+  group_by(species_complete) %>%
+  summarise(hedgesg = mean(hedgesg))
+hedgesg <- abs(result_all_species$hedgesg)
+
+reptiles_tree_time_tree <- read.newick("data/raw/species.nwk")
+
+### STATES ###
+first_quartile <- round(summary(hedgesg)[2], 2)
+second_quartile <- round(summary(hedgesg)[3], 2)
+
+seeds <- c(2, 3, 4)
+time <- 100000
+
+states_choice <- c("one") #can be one, two, or three
+if(states_choice == "one"){
+  # states first way - around 0.2, 0.5, 0.8 #
+  states <- function(x){
+    if(x <= 0.65){
+      x <- 0
+    } else if (x > 0.65){
+      x <- 1
+    } 
+  }
+} else if(states_choice == "two"){
+  # states second way - using 3 quartiles #
+  states <- function(x){
+    if(x <= second_quartile){
+      x <- 0
+    } else if(x > second_quartile){
+      x <- 1
+    }
+  }
+} else if(states_choice == "three"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.5){
+      x <- 0
+    }  else if(x > 0.5){
+      x <- 1
+    }
+  } 
+} else if(states_choice == "fourth"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.35){
+      x <- 0
+    }  else if(x > 0.35){
+      x <- 1
+    }
+  }
+} else {
+  message("Error! Chose 'one', 'two','three' or fourth" )
+}
+
+hedgesg <- sapply(hedgesg, states)
+hedgesg <- setNames(hedgesg, result_all_species$species_complete)
+
+states <- data.frame(hedgesg)
+states <- rownames_to_column(states, var='species')
+states$species <- tolower(states$species)
+
+mu <- rownames_to_column(mu, var='species')
+mu$species <- gsub("_", " ", mu$species)
+mu$species <- tolower(mu$species)
+
+lambda <- rownames_to_column(lambda, var='species')
+lambda$species <- gsub("_", " ", lambda$species)
+lambda$species <- tolower(lambda$species)
+
+result_final_bamm <- inner_join(states, lambda, by='species')
+result_final_bamm <- inner_join(result_final_bamm, mu, by='species')
+result_final_bamm$tip.diversification <- abs(result_final_bamm$tip.lambda.avg - result_final_bamm$tip.mu.avg)
+
+plot(result_final_bamm$hedgesg, result_final_bamm$tip.lambda.avg)
+plot(result_final_bamm$hedgesg, result_final_bamm$tip.mu.avg)
+
+teste <- result_final_bamm |>
+  pivot_wider(names_from=hedgesg, values_from = starts_with("tip.lambda"))
+
+result_final_bamm |>
+  group_by(hedgesg) |>
+  summarise(mean(tip.lambda.avg))
+
+result_final_bamm |>
+  group_by(hedgesg) |>
+  summarise(round(mean(tip.mu.avg), 9))
+
+result_final_bamm |>
+  group_by(hedgesg) |>
+  summarise(mean(tip.diversification))
+
+result_final_bamm$hedgesg1 <- result_final_bamm$hedgesg
+
+result_final_bamm %>% 
+  ggplot(aes(x = as.factor(hedgesg), y=tip.lambda.avg)) + 
+  geom_boxplot()
+
+result_final_bamm %>% 
+  ggplot(aes(x = as.factor(hedgesg), y=tip.mu.avg)) + 
+  geom_boxplot()
+
+result_final_bamm %>% 
+  ggplot(aes(x = as.factor(hedgesg), y=tip.diversification)) + 
+  geom_boxplot()

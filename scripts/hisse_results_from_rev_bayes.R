@@ -1,8 +1,10 @@
+library(tidyverse)
 library(devtools)
 library(ggplot2)
 library(RevGadgets)
+library(stableGR)
 
-HiSSE_file <- paste0("output/reptiles_HiSSE_plasticity12.log")
+HiSSE_file <- paste0("output/reptiles_HiSSE_plasticity1.log")
 pdata <- processSSE(HiSSE_file)
 
 speciation <- pdata[pdata['rate'] == 'speciation', ]
@@ -35,6 +37,15 @@ n.eff(as.matrix(general_rates[, -1]))
 n.eff(as.matrix(speciation2[, -1]))
 n.eff(as.matrix(extinction2[, -1]))
 n.eff(as.matrix(diversification2[, -1]))
+
+n.eff(as.matrix(speciation2[, -c(1, 2, 4)]))
+n.eff(as.matrix(speciation2[, -c(1, 3, 5)]))
+n.eff(as.matrix(extinction2[, -c(1, 2, 4)]))
+n.eff(as.matrix(extinction2[, -c(1, 3, 5)]))
+n.eff(as.matrix(diversification2[, -c(1, 2, 4)]))
+n.eff(as.matrix(diversification2[, -c(1, 3, 5)]))
+
+
 
 ###### BAYES FACTOR CALCULATION ######
 bf_mean <- function(x, y) x / y
@@ -269,5 +280,17 @@ ggplot2::ggplot(pdata, ggplot2::aes(x = value, fill = observed_state)) +
   ggplot2::theme_bw() + ggplot2::theme(panel.grid.major = ggplot2::element_blank(), 
                                        panel.grid.minor = ggplot2::element_blank(), 
                                        strip.background = ggplot2::element_blank())
+
+plot <- ggplot2::ggplot(pdata, ggplot2::aes(x = observed_state, y = value, fill = observed_state)) + 
+  ggplot2::geom_boxplot(alpha = 0.8) + 
+  ggplot2::scale_fill_manual(values = colFun(length(unique(pdata$observed_state))), 
+                             name = "Observed state") + 
+  ggplot2::facet_wrap(rate ~ hidden_state, scales = "free", ncol = 2) + 
+  ggplot2::xlab("Observed state") + 
+  ggplot2::ylab("Posterior density") + 
+  ggplot2::theme_bw() + 
+  ggplot2::theme(panel.grid.major = ggplot2::element_blank(), 
+                 panel.grid.minor = ggplot2::element_blank(), 
+                 strip.background = ggplot2::element_blank())
 
 ggsave(paste0("HiSSE_div_rates_activity_period.png"),plot, width=10, height=5)
