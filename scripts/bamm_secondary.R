@@ -224,6 +224,35 @@ result_final_bamm %>%
 #### SECOND WAY ####
 ### READING AND TREATING DATA - BAMM ###
 ###################################################################
+tree_time_tree_ready <- read.tree('filogenia_repteis.tre')
+tree_time_tree_ready <- read.tree('data/raw/repteis_especies_total.nwk')
+species_total <- read.table('data/raw/repteis_especies_total.txt', sep=',')
+tree_time_tree_ready$tip.label <- gsub("_", " ", tree_time_tree_ready$tip.label)
+info_fix_poly <- build_info(unlist(species_total$V1), tree_time_tree_ready, 
+                            find.ranks=TRUE, db="gbif")
+#saveRDS(info_fix_poly, 'info_fix_poly.rds')
+#info_fix_poly <- read_rds("info_fix_poly.rds")
+input_fix_poly <- info2input(info_fix_poly, tree_time_tree_ready,
+                             parallelize=F)
+#saveRDS(input_fix_poly, 'input_fix_poly.rds')
+#input_fix_poly <- read_rds("input_fix_poly.rds")
+tree_time_tree_ready <- rand_tip(input = input_fix_poly, 
+                                 tree = tree_time_tree_ready,
+                                 forceultrametric=FALSE,
+                                 prune=TRUE)
+#saveRDS(tree_time_tree_ready, 'tree_time_tree_ready_y_prune.rds')
+#tree_time_tree_ready <- read_rds("tree_time_tree_ready_y_prune.rds")
+#tree_time_tree_ready <- force.ultrametric(tree_time_tree_ready, method="extend")
+#tree_time_tree_ready <- dispRity::remove.zero.brlen(tree_time_tree_ready)
+#is.ultrametric(tree_time_tree_ready)
+#is.binary.tree(tree_time_tree_ready)
+#min(tree_time_tree_ready$edge.length)
+#write.tree(tree_time_tree_ready, "filogenia_repteis_prune.tre")
+#write.tree(tree_time_tree_ready, "filogenia_repteis_prune_from_orig_phy.tre")
+
+tree_time_tree_ready <- read.tree('filogenia_repteis_prune.tre')
+tree_time_tree_ready2 <- read.tree('filogenia_repteis_prune_from_orig_phy.tre')
+
 tree_time_tree_ready <- read.tree("data/raw/squamata_pyron_2013.txt") #squamatas
 tree_time_tree_ready <- force.ultrametric(tree_time_tree_ready, method="extend")
 is.ultrametric(tree_time_tree_ready)
@@ -239,19 +268,34 @@ is.binary.tree(tree_time_tree_ready)
 min(tree_time_tree_ready$edge.length)
 write.tree(tree_time_tree_ready, "filogenia_repteis.tre")
 
+##### reading phylogenny ######
+tree_time_tree_ready <- read.tree('filogenia_repteis_prune_from_orig_phy.tre')
+tree_time_tree_ready <- read.tree('filogenia_repteis_prune.tre')
+mcmcout <- read.table("mcmc_out_12000.txt", sep=',', header = T)
+event_data <- read.table("event_data_12000.txt", sep=',', header = T)
 
-tree_time_tree_ready <- read.tree('fil2.tre')
+tree_time_tree_ready <- read.tree('filogenia_repteis.tre')
+mcmcout <- read.table("mcmc_out_reptiles_2milion.txt", sep=',', header = T)
+event_data <- read.table("event_data_reptiles_2milion.txt", sep=',', header = T)
+
+tree_time_tree_ready <- read.tree('filogenia_repteis.tre')
+mcmcout <- read.table("mcmc_out_reptiles.txt", sep=',', header = T)
+event_data <- read.table("event_data_reptiles.txt", sep=',', header = T)
+
+tree_time_tree_ready <- read.tree('filogenia_squamata.tre')
 mcmcout <- read.table("mcmc_out_squamata.txt", sep=',', header = T)
 event_data <- read.table("event_data_squamata.txt", sep=',', header = T)
 
 plot(mcmcout$logLik ~ mcmcout$generation, pch = 19)
-burnstart <- floor(0.1 * nrow(mcmcout))
+burnstart <- floor(0.25 * nrow(mcmcout))
 postburn <- mcmcout[burnstart:nrow(mcmcout), ]
 conver <- sapply(postburn, effectiveSize)
 
 tree_time_tree_ready$tip.label <- gsub(" ", "_", tree_time_tree_ready$tip.label)
 
-results <- BAMMtools::getEventData(tree_time_tree_ready, event_data, burnin=0.25)
+results <- BAMMtools::getEventData(tree_time_tree_ready, 
+                                   event_data, burnin=0.25,
+                                   nsamples=500)
 
 #plotRateThroughTime(results)
 tip <- getTipRates(results)
@@ -341,15 +385,20 @@ lambda <- rownames_to_column(lambda, var='species')
 lambda$species <- gsub("_", " ", lambda$species)
 lambda$species <- tolower(lambda$species)
 
-result_final_bamm <- inner_join(states, lambda, by='species')
-result_final_bamm <- inner_join(result_final_bamm, mu, by='species')
+result_final_bamm <- left_join(states, lambda, by='species')
+result_final_bamm <- left_join(result_final_bamm, mu, by='species')
 result_final_bamm$tip.diversification <- abs(result_final_bamm$tip.lambda.avg - result_final_bamm$tip.mu.avg)
+
+result_final_bamm <- result_final_bamm[!is.na(result_final_bamm[, "tip.lambda.avg"]),]
 
 plot(result_final_bamm$hedgesg, result_final_bamm$tip.lambda.avg)
 plot(result_final_bamm$hedgesg, result_final_bamm$tip.mu.avg)
 
-teste <- result_final_bamm |>
-  pivot_wider(names_from=hedgesg, values_from = starts_with("tip.lambda"))
+#teste <- result_final_bamm |>
+#  pivot_wider(names_from=hedgesg, values_from = starts_with("tip.lambda"))
+
+#result_final_bamm <- result_final_bamm[(result_final_bamm$tip.lambda.avg >= summary(result_final_bamm$tip.lambda.avg)[2] & 
+#                    result_final_bamm$tip.lambda.avg <= summary(result_final_bamm$tip.lambda.avg)[5]), ] 
 
 result_final_bamm |>
   group_by(hedgesg) |>
@@ -376,3 +425,4 @@ result_final_bamm %>%
 result_final_bamm %>% 
   ggplot(aes(x = as.factor(hedgesg), y=tip.diversification)) + 
   geom_boxplot()
+

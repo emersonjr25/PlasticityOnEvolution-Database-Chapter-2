@@ -4,7 +4,7 @@ library(ggplot2)
 library(RevGadgets)
 library(stableGR)
 
-HiSSE_file <- paste0("output/reptiles_HiSSE_plasticity1.log")
+HiSSE_file <- paste0("output/reptiles_HiSSE_plasticity1_50000_time.log")
 pdata <- processSSE(HiSSE_file)
 
 speciation <- pdata[pdata['rate'] == 'speciation', ]
@@ -272,7 +272,7 @@ if(save_result == TRUE){
 
 # plot the rates
 
-ggplot2::ggplot(pdata, ggplot2::aes(x = value, fill = observed_state)) + 
+plot1 <- ggplot2::ggplot(pdata, ggplot2::aes(x = value, fill = observed_state)) + 
   ggplot2::geom_density(alpha = 0.8) + ggplot2::scale_fill_manual(values = colFun(length(unique(pdata$observed_state))), 
                                                                   name = "Observed state") + ggplot2::facet_wrap(rate ~ hidden_state, 
                                                                                                                  scales = "free", ncol = 2) + 
@@ -280,8 +280,9 @@ ggplot2::ggplot(pdata, ggplot2::aes(x = value, fill = observed_state)) +
   ggplot2::theme_bw() + ggplot2::theme(panel.grid.major = ggplot2::element_blank(), 
                                        panel.grid.minor = ggplot2::element_blank(), 
                                        strip.background = ggplot2::element_blank())
+ggsave(paste0("HiSSE_density_50000.png"),plot1, width=10, height=5)
 
-plot <- ggplot2::ggplot(pdata, ggplot2::aes(x = observed_state, y = value, fill = observed_state)) + 
+plot2 <- ggplot2::ggplot(pdata, ggplot2::aes(x = observed_state, y = value, fill = observed_state)) + 
   ggplot2::geom_boxplot(alpha = 0.8) + 
   ggplot2::scale_fill_manual(values = colFun(length(unique(pdata$observed_state))), 
                              name = "Observed state") + 
@@ -293,4 +294,4 @@ plot <- ggplot2::ggplot(pdata, ggplot2::aes(x = observed_state, y = value, fill 
                  panel.grid.minor = ggplot2::element_blank(), 
                  strip.background = ggplot2::element_blank())
 
-ggsave(paste0("HiSSE_div_rates_activity_period.png"),plot, width=10, height=5)
+ggsave(paste0("HiSSE_boxplot_50000.png"),plot2, width=10, height=5)
