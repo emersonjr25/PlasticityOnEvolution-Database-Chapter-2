@@ -263,8 +263,8 @@ write.tree(tree_time_tree_ready, "filogenia_repteis.tre")
 
 ##### reading phylogeny ######
 tree_time_tree_ready <- read.tree('filogenia_repteis_prune.tre')
-mcmcout <- read.table("mcmc_out_12000.txt", sep=',', header = T)
-event_data <- read.table("event_data_12000.txt", sep=',', header = T)
+mcmcout <- read.table("mcmc_out_12000_complete.txt", sep=',', header = T)
+event_data <- read.table("event_data_12000_complete.txt", sep=',', header = T)
 
 tree_time_tree_ready <- read.tree('filogenia_repteis.tre')
 mcmcout <- read.table("mcmc_out_reptiles_2milion.txt", sep=',', header = T)
@@ -275,15 +275,15 @@ mcmcout <- read.table("mcmc_out_squamata.txt", sep=',', header = T)
 event_data <- read.table("event_data_squamata.txt", sep=',', header = T)
 
 plot(mcmcout$logLik ~ mcmcout$generation, pch = 19)
-burnstart <- floor(0.5 * nrow(mcmcout))
+burnstart <- floor(0.8 * nrow(mcmcout))
 postburn <- mcmcout[burnstart:nrow(mcmcout), ]
 conver <- sapply(postburn, effectiveSize)
 
 tree_time_tree_ready$tip.label <- gsub(" ", "_", tree_time_tree_ready$tip.label)
 
 results <- BAMMtools::getEventData(tree_time_tree_ready, 
-                                   event_data, burnin=0.5,
-                                   nsamples=500)
+                                   event_data, burnin=0.8,
+                                   nsamples=1000)
 
 #plotRateThroughTime(results)
 tip <- getTipRates(results)
@@ -375,7 +375,7 @@ lambda$species <- tolower(lambda$species)
 
 result_final_bamm <- left_join(states, lambda, by='species')
 result_final_bamm <- left_join(result_final_bamm, mu, by='species')
-result_final_bamm$tip.diversification <- abs(result_final_bamm$tip.lambda.avg - result_final_bamm$tip.mu.avg)
+result_final_bamm$tip.diversification <- result_final_bamm$tip.lambda.avg - result_final_bamm$tip.mu.avg
 
 result_final_bamm <- result_final_bamm[!is.na(result_final_bamm[, "tip.lambda.avg"]),]
 
@@ -413,3 +413,4 @@ result_final_bamm %>%
 result_final_bamm %>% 
   ggplot(aes(x = as.factor(hedgesg), y=tip.diversification)) + 
   geom_boxplot()
+

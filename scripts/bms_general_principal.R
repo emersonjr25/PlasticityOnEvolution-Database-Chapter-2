@@ -70,23 +70,19 @@ states_choice <- c("one") #can be one, two, or three
 if(states_choice == "one"){
   # states first way - around 0.2, 0.5, 0.8 #
   states <- function(x){
-    if(x <= 0.35){
+    if(x <= 0.65){
+      x <- 0
+    } else if (x > 0.65){
       x <- 1
-    } else if (x > 0.35 & x <= 0.65){
-      x <- 2
-    } else if(x > 0.65){
-      x <- 3
-    }
+    } 
   }
 } else if(states_choice == "two"){
   # states second way - using 3 quartiles #
   states <- function(x){
-    if(x <= first_quartile){
-      x <- 1
-    } else if (x > first_quartile & x <= second_quartile){
-      x <- 2
+    if(x <= second_quartile){
+      x <- 0
     } else if(x > second_quartile){
-      x <- 3
+      x <- 1
     }
   }
 } else if(states_choice == "three"){
@@ -94,16 +90,25 @@ if(states_choice == "one"){
   # can considered very low, low, and medium/high or #
   # low, medium, and high #
   states <- function(x){
-    if(x <= 0.2){
+    if(x <= 0.5){
+      x <- 0
+    }  else if(x > 0.5){
       x <- 1
-    } else if (x > 0.2 & x <= 0.5){
-      x <- 2
-    } else if(x > 0.5){
-      x <- 3
+    }
+  } 
+} else if(states_choice == "fourth"){
+  # states third way - some articles #
+  # can considered very low, low, and medium/high or #
+  # low, medium, and high #
+  states <- function(x){
+    if(x <= 0.35){
+      x <- 0
+    }  else if(x > 0.35){
+      x <- 1
     }
   }
 } else {
-  message("Error! Chose 'one', 'two', or 'three")
+  message("Error! Chose 'one', 'two','three' or fourth" )
 }
 
 hedgesg_mass <- sapply(hedgesg_mass, states)
@@ -155,12 +160,5 @@ tree_to_ouwie <- make.simmap(tree_time_tree_ready, hedgesg_mass, model="ER")
 plot(tree_to_ouwie)
 
 # BMS #
-BM <- OUwie(tree_to_ouwie,Trait,model="BM1", simmap.tree=TRUE)
-OU1 <- OUwie(tree_to_ouwie,Trait,model="OU1", simmap.tree=TRUE)
 bms <- OUwie(tree_to_ouwie,Trait,model="BMS", simmap.tree=TRUE, root.station=FALSE)
-OUM <- OUwie(tree_to_ouwie,Trait,model="OUM", simmap.tree=TRUE)
-OUVM <- OUwie(tree_to_ouwie,Trait,model="OUMV", simmap.tree=TRUE)
-
-aicc <- c(bms$AICc, OUM$AICc, BM$AICc, 
-          OU1$AICc, OUVM$AICc)
-aicw(aicc)
+bms
