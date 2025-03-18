@@ -13,8 +13,8 @@ library(randtip)
 library(stableGR)
 library(OUwie)
 library(corHMM)
-library(bayou)
-library(ggtree)
+#library(bayou)
+#library(ggtree)
 
 dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",") 
 
@@ -62,19 +62,8 @@ subdata_filtered_mass <- subdata_filtered_mass |>
 subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean <- subdata_filtered_mass[subdata_filtered_mass$units == "mg", ]$mean / 1000
 data <- subdata_filtered_mass
 
-
 data$T <- as.numeric(gsub(",", ".", as.character(data$T)))
 data$mean <- as.numeric(gsub(",", ".", as.character(data$mean)))
-
-# Group data by species and temperature to calculate mean, sd, and count for each group
-grouped_data <- data %>%
-  group_by(species_complete, T) %>%
-  summarise(
-    mean_trait = mean(mean, na.rm = TRUE),
-    std_trait = sd(mean, na.rm = TRUE),
-    n_trait = n()
-  ) %>%
-  ungroup()
 
 # Define function to calculate Hedges' g safely
 hedges_g_safe <- function(mean1, mean2, sd1, sd2, n1, n2) {
@@ -93,18 +82,18 @@ hedges_g_safe <- function(mean1, mean2, sd1, sd2, n1, n2) {
   return(g)
 }
 
-# Identify min and max temperatures for each species and calculate Hedges' g
-species_min_max <- grouped_data %>%
-  group_by(species_complete) %>%
+# Group by id, paper_no, and species_complete, calculate min and max T and corresponding traits
+hedges_g_results <- data %>%
+  group_by(id, paper_no, species_complete) %>%
   summarise(
     T_min = min(T),
     T_max = max(T),
-    mean_trait_min = mean_trait[which.min(T)],
-    mean_trait_max = mean_trait[which.max(T)],
-    std_trait_min = std_trait[which.min(T)],
-    std_trait_max = std_trait[which.max(T)],
-    n_trait_min = n_trait[which.min(T)],
-    n_trait_max = n_trait[which.max(T)]
+    mean_trait_min = mean[which.min(T)],
+    mean_trait_max = mean[which.max(T)],
+    std_trait_min = sd(mean[T == T_min]),
+    std_trait_max = sd(mean[T == T_max]),
+    n_trait_min = sum(T == T_min),
+    n_trait_max = sum(T == T_max)
   ) %>%
   rowwise() %>%
   mutate(
@@ -112,10 +101,18 @@ species_min_max <- grouped_data %>%
   ) %>%
   ungroup()
 
-# View the result
-hedgesg <- abs(species_min_max$hedges_g)
+hedges_g_results$hedges_g <- abs(hedges_g_results$hedges_g)
 
-hedgesg <- setNames(hedgesg, species_min_max$species_complete)
+species_mean_hedges_g <- hedges_g_results %>%
+  group_by(species_complete) %>%
+  summarise(mean_hedges_g = mean(hedges_g, na.rm = TRUE))
+
+# View the result
+print(species_mean_hedges_g)
+
+hedgesg <- abs(species_mean_hedges_g$mean_hedges_g)
+
+hedgesg <- setNames(hedgesg, species_mean_hedges_g$species_complete)
 
 rates <- read.csv2("data/raw/alldat.csv", sep=',')
 
@@ -145,6 +142,35 @@ plot(result_final_bamm$hedgesg, result_final_bamm$clads)
 plot(result_final_bamm$hedgesg, result_final_bamm$massRate)
 
 
+### todos os traços ###
+dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",") 
+
+subdata <- dados %>% 
+  as.tibble() %>%
+  select(paper_no, genus, species, simp_trait, T, mean) %>%
+  mutate(species_complete = paste0(genus," ", species)) %>%
+  group_by(paper_no, species_complete, simp_trait) %>%
+  mutate(id = paste0('ID', paper_no, species_complete, simp_trait)) %>%
+  select(id, paper_no, species_complete, 
+         simp_trait, T, mean)  %>%
+  mutate(species_complete = str_squish(species_complete))
+
+uniques <- subdata %>%
+  ungroup() %>%
+  select(id) %>%
+  unique() %>%
+  unlist()
+
+for(i in seq_along(uniques)){
+  temporary <- subdata$id == uniques[[i]]
+  subdata$id[temporary] <- i
+}
+
+subdata <- subdata %>% 
+  mutate(id = as.integer(id), 
+         mean = as.double(mean))
+
+data <- subdata
 
 data$T <- as.numeric(gsub(",", ".", as.character(data$T)))
 data$mean <- as.numeric(gsub(",", ".", as.character(data$mean)))
@@ -185,6 +211,8 @@ hedges_g_results <- data %>%
   ) %>%
   ungroup()
 
+hedges_g_results$hedges_g <- abs(hedges_g_results$hedges_g)
+
 species_mean_hedges_g <- hedges_g_results %>%
   group_by(species_complete) %>%
   summarise(mean_hedges_g = mean(hedges_g, na.rm = TRUE))
@@ -222,4 +250,3 @@ plot(log(result_final_bamm$hedgesg), log(result_final_bamm$massRate))
 plot(result_final_bamm$hedgesg, result_final_bamm$bamm)
 plot(result_final_bamm$hedgesg, result_final_bamm$clads)
 plot(result_final_bamm$hedgesg, result_final_bamm$massRate)
-

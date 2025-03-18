@@ -13,8 +13,8 @@ library(randtip)
 library(stableGR)
 library(OUwie)
 library(corHMM)
-library(bayou)
-library(ggtree)
+#library(bayou)
+#library(ggtree)
 
 dados <- read.csv("data/raw/Database.csv", header = TRUE, sep = ",") 
 
