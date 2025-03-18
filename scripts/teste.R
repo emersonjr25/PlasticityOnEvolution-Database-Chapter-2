@@ -250,3 +250,4 @@ plot(log(result_final_bamm$hedgesg), log(result_final_bamm$massRate))
 plot(result_final_bamm$hedgesg, result_final_bamm$bamm)
 plot(result_final_bamm$hedgesg, result_final_bamm$clads)
 plot(result_final_bamm$hedgesg, result_final_bamm$massRate)
+
