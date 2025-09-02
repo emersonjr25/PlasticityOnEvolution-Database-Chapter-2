@@ -144,31 +144,67 @@ lambda$species <- tolower(lambda$species)
 
 result_final_bamm <- left_join(states, lambda, by='species')
 result_final_bamm <- left_join(result_final_bamm, mu, by='species')
-result_final_bamm$tip.diversification <- abs(result_final_bamm$tip.lambda.avg - result_final_bamm$tip.mu.avg)
+result_final_bamm$tip.diversification <- result_final_bamm$tip.lambda.avg - result_final_bamm$tip.mu.avg
 
 result_final_bamm <- result_final_bamm[!is.na(result_final_bamm[, "tip.lambda.avg"]),]
 
-#teste <- result_final_bamm |>
-#  pivot_wider(names_from=hedgesg, values_from = starts_with("tip.lambda"))
+# ---- calcular limites ----
+q1_lambda <- quantile(result_final_bamm$tip.lambda.avg, 0.25, na.rm = TRUE)
+q3_lambda <- quantile(result_final_bamm$tip.lambda.avg, 0.75, na.rm = TRUE)
+iqr_lambda <- q3_lambda - q1_lambda
+lower_lambda <- q1_lambda - 1.5 * iqr_lambda
+upper_lambda <- q3_lambda + 1.5 * iqr_lambda
 
-result_final_bamm <- result_final_bamm[(result_final_bamm$tip.lambda.avg >= summary(result_final_bamm$tip.lambda.avg)[2] & 
-                                         result_final_bamm$tip.lambda.avg <= summary(result_final_bamm$tip.lambda.avg)[5]), ] 
+q1_mu <- quantile(result_final_bamm$tip.mu.avg, 0.25, na.rm = TRUE)
+q3_mu <- quantile(result_final_bamm$tip.mu.avg, 0.75, na.rm = TRUE)
+iqr_mu <- q3_mu - q1_mu
+lower_mu <- q1_mu - 1.5 * iqr_mu
+upper_mu <- q3_mu + 1.5 * iqr_mu
+
+# ---- filtrar todos os outliers ----
+result_final_bamm <- result_final_bamm %>%
+  filter(
+    tip.lambda.avg >= lower_lambda & tip.lambda.avg <= upper_lambda,
+    tip.mu.avg >= lower_mu & tip.mu.avg <= upper_mu
+  )
+
+subdata <- dados %>% 
+  as.tibble() %>%
+  select(paper_no, genus, order, family, species, simp_trait, T, mean) %>%
+  mutate(species_complete = paste0(genus," ", species)) %>%
+  group_by(paper_no, species_complete, simp_trait) %>%
+  mutate(id = paste0('ID', paper_no, species_complete, simp_trait)) %>%
+  select(id, paper_no, species_complete, order, family,
+         simp_trait, T, mean)  %>%
+  mutate(species_complete = str_squish(species_complete))
+
+subdata$species <- tolower(subdata$species_complete)
+subdata <- subdata |>
+  ungroup() |>
+  select(species, order) |> 
+  distinct()
+
+result_final_bamm <- left_join(result_final_bamm, subdata, by='species')
+
+result_final_bamm <- result_final_bamm %>%
+  filter(order != "Crocodilia")
 
 result_final_bamm |>
-  group_by(hedgesg) |>
+  group_by(hedgesg, order) |>
   summarise(round(mean(tip.mu.avg), 9))
 
 result_final_bamm |>
-  group_by(hedgesg) |>
+  group_by(hedgesg, order) |>
   summarise(round(mean(tip.lambda.avg), 9))
 
 result_final_bamm |>
-  group_by(hedgesg) |>
+  group_by(hedgesg, order) |>
   summarise(mean(tip.diversification))
 
 p1 <- result_final_bamm %>% 
-  ggplot(aes(x = hedgesg, y = tip.lambda.avg)) + 
+  ggplot(aes(x = hedgesg, y = tip.lambda.avg, color = order)) +
   geom_jitter(alpha = 0.7, size = 2) + 
+  geom_smooth(aes(group = order), method = "lm", se = FALSE) +  # regression line per order
   theme_bw() +
   xlab("Hedges' g") +
   ylab("Speciation rate") +
@@ -180,8 +216,9 @@ p1 <- result_final_bamm %>%
   )
 
 p2 <- result_final_bamm %>% 
-  ggplot(aes(x = hedgesg, y = tip.mu.avg)) + 
+  ggplot(aes(x = hedgesg, y = tip.mu.avg, color = order)) +
   geom_jitter(alpha = 0.7, size = 2) + 
+  geom_smooth(aes(group = order), method = "lm", se = FALSE) +  # regression line per order
   theme_bw() +
   xlab("Hedges' g") +
   ylab("Extinction rate") +
@@ -193,8 +230,9 @@ p2 <- result_final_bamm %>%
   )
 
 p3 <- result_final_bamm %>% 
-  ggplot(aes(x = hedgesg, y = tip.diversification)) + 
+  ggplot(aes(x = hedgesg, y = tip.diversification, color = order)) +
   geom_jitter(alpha = 0.7, size = 2) + 
+  geom_smooth(aes(group = order), method = "lm", se = FALSE) +  # regression line per order
   theme_bw() +
   xlab("Hedges' g") +
   ylab("Diversification rate") +
@@ -205,10 +243,10 @@ p3 <- result_final_bamm %>%
     legend.position = "bottom"
   )
 
-# Save as TIFF (high resolution, e.g., 300 dpi)
-ggsave("speciation_rate.tiff", plot = p1, width = 6, height = 4, dpi = 300)
-ggsave("extinction_rate.tiff", plot = p2, width = 6, height = 4, dpi = 300)
-ggsave("diversification_rate.tiff", plot = p3, width = 6, height = 4, dpi = 300)
+ggsave("speciation_rate_order.tiff", plot = p1, width = 6, height = 4, dpi = 100)
+ggsave("extinction_rate_order.tiff", plot = p2, width = 6, height = 4, dpi = 100)
+ggsave("diversification_rate_order.tiff", plot = p3, width = 6, height = 4, dpi = 100)
+
 write.csv(result_final_bamm, 
           file = "result_final_bamm.csv", 
           row.names = FALSE)
