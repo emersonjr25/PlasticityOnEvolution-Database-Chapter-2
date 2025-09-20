@@ -71,18 +71,46 @@ diversification_means <- colMeans(bf_diversif)
 #                                        panel.grid.minor = ggplot2::element_blank(), 
 #                                        strip.background = ggplot2::element_blank())
 # ggsave(paste0("HiSSE_density_50000.png"),plot1, width=10, height=5)
+<<<<<<< HEAD
+=======
 
-plot2 <- ggplot2::ggplot(pdata, ggplot2::aes(x = observed_state, y = value, fill = observed_state)) + 
-  ggplot2::geom_boxplot(alpha = 0.8) + 
-  ggplot2::scale_fill_manual(values = colFun(length(unique(pdata$observed_state))), 
-                             name = "Observed state") + 
-  ggplot2::facet_wrap(rate ~ hidden_state, scales = "free", ncol = 2) + 
-  ggplot2::xlab("Observed state") + 
-  ggplot2::ylab("Posterior density") + 
-  ggplot2::theme_bw() + 
-  ggplot2::theme(panel.grid.major = ggplot2::element_blank(), 
-                 panel.grid.minor = ggplot2::element_blank(), 
-                 strip.background = ggplot2::element_blank())
+#plot2 <- ggplot2::ggplot(pdata, ggplot2::aes(x = observed_state, y = value, fill = observed_state)) + 
+#  ggplot2::geom_boxplot(alpha = 0.8) + 
+#  ggplot2::scale_fill_manual(values = colFun(length(unique(pdata$observed_state))), 
+#                             name = "Observed state") + 
+#  ggplot2::facet_wrap(rate ~ hidden_state, scales = "free", ncol = 2) + 
+#  ggplot2::xlab("Observed state") + 
+#  ggplot2::ylab("Posterior density") + 
+#  ggplot2::theme_bw() + 
+#  ggplot2::theme(panel.grid.major = ggplot2::element_blank(), 
+#                 panel.grid.minor = ggplot2::element_blank(), 
+#                 strip.background = ggplot2::element_blank())
+>>>>>>> version-using-hisse-and-bamm
 
+
+<<<<<<< HEAD
 
 ggsave(paste0("HiSSE_boxplot_50000.png"),plot2, width=8, height=6)
+=======
+fill_colors <- colFun(length(unique(pdata$observed_state)))  # ex: vermelho e azul
+
+# cores um pouco mais escuras usando alpha
+line_colors <- alpha(fill_colors, 0.8)  # deixa ligeiramente mais escuro
+
+plot2 <- ggplot(pdata, aes(x = observed_state, y = value, fill = observed_state)) + 
+  geom_boxplot(aes(color = observed_state), alpha = 0.8, size = 0.7) + 
+  scale_fill_manual(values = fill_colors, name = "Observed state") +
+  scale_color_manual(values = line_colors, guide = "none") +  # linhas e pontos
+  facet_wrap(rate ~ hidden_state, scales = "free", ncol = 2) + 
+  xlab("Observed state") + 
+  ylab("Posterior density") + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.background = element_blank())
+
+ggsave(paste0("HiSSE_boxplot_50000.png"),plot2, width=8, height=6)
+write.csv(pdata, 
+          file = "hisse_data.csv", 
+          row.names = FALSE)
+>>>>>>> version-using-hisse-and-bamm
